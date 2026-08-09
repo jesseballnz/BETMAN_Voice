@@ -1,21 +1,21 @@
 # BETMAN_Voice Manual
 
-## Deployment on batman-staging
+## Installation
 
-1. Clone this repo to `/Volumes/HDD/voicebox/app`
+1. Clone the repo
 2. Run `./install.sh`
 3. Start with `./scripts/run.sh`
 
 ## Configuration
 
-Edit `app/core/config.py` for storage paths.
+Edit `app/core/config.py` for storage paths and ports.
 
 ## Integration with BETMAN_Content
 
-Set in BETMAN_Content:
+Set in BETMAN_Content environment:
 ```
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://192.168.1.111:8000
+DJ_VOICEBOX_BASE_URL=http://your-voicebox-host:8000
 ```
 
 ## Voice Training

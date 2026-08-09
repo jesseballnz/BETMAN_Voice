@@ -1,14 +1,12 @@
 # BETMAN_Voice
 
-Production VoiceBox deployment for BETMAN on batman-staging.
+Standalone VoiceBox deployment package for BETMAN.
 
 ## Overview
 
 VoiceBox is the local TTS/STT platform used by BETMAN_Content.
 
-- Runs on `betman@192.168.1.111`
-- Storage: `/Volumes/HDD/voicebox`
-- API: `http://192.168.1.111:8000`
+It is designed to be installed and run independently of any specific host.
 
 ## Quick Start (batman-staging)
 
