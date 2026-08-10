@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import jwt
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ from betman_voice.api.schemas import (
     TtsResponse,
     VoiceUpsert,
 )
-from betman_voice.core.auth import issue_token, password_verify, require_principal
+from betman_voice.core.auth import decode_token, issue_token, password_verify, require_principal
 from betman_voice.core.config import get_settings
 from betman_voice.core.logging import configure_logging, get_logger
 from betman_voice.core.runtime import detect_runtime
@@ -64,11 +64,25 @@ def create_app() -> FastAPI:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.post("/auth/login", response_model=LoginResponse)
-    def login(body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+    def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)) -> LoginResponse:
         user = db.query(User).filter(User.email == body.email, User.active.is_(True)).first()
         if not user or not password_verify(body.password, user.password_hash):
             raise HTTPException(401, "invalid_credentials")
-        return LoginResponse(token=issue_token(user))
+        token = issue_token(user)
+        response.set_cookie(
+            "betman_voice_session",
+            token,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=12 * 60 * 60,
+        )
+        return LoginResponse(token=token)
+
+    @app.post("/auth/logout")
+    def logout(response: Response) -> dict:
+        response.delete_cookie("betman_voice_session")
+        return {"ok": True}
 
     @app.get("/voices")
     def voices(
@@ -256,18 +270,24 @@ def create_app() -> FastAPI:
         ),
         Path.cwd() / "static",
     )
-    if static_dir.exists():
-        app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
     @app.get("/", response_class=HTMLResponse)
-    def root_ui():
-        return admin_ui()
+    def root_ui(request: Request):
+        return admin_ui(request)
 
     @app.get("/admin", response_class=HTMLResponse)
-    def admin_ui():
-        index = static_dir / "admin.html"
-        if index.exists():
-            return HTMLResponse(index.read_text())
+    def admin_ui(request: Request):
+        session_token = request.cookies.get("betman_voice_session", "")
+        try:
+            principal = decode_token(session_token) if session_token else {}
+        except jwt.PyJWTError:
+            principal = {}
+        if principal.get("role") == "admin":
+            index = static_dir / "admin.html"
+            if index.exists():
+                return HTMLResponse(index.read_text())
+        login_index = static_dir / "admin_login.html"
+        if login_index.exists():
+            return HTMLResponse(login_index.read_text())
         return HTMLResponse("<h1>BETMAN_Voice</h1>")
 
     return app

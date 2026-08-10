@@ -48,6 +48,17 @@ def issue_token(user: User) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
+def decode_token(token: str) -> dict:
+    payload = jwt.decode(token, get_settings().secret_key, algorithms=["HS256"])
+    return {
+        "tenant_id": payload["tenant_id"],
+        "role": payload.get("role", "user"),
+        "auth": "jwt",
+        "user_id": payload.get("sub"),
+        "email": payload.get("email"),
+    }
+
+
 def require_principal(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
@@ -62,13 +73,14 @@ def require_principal(
 
     if credentials and credentials.scheme.lower() == "bearer":
         try:
-            payload = jwt.decode(credentials.credentials, get_settings().secret_key, algorithms=["HS256"])
-            return {
-                "tenant_id": payload["tenant_id"],
-                "role": payload.get("role", "user"),
-                "auth": "jwt",
-                "user_id": payload.get("sub"),
-            }
+            return decode_token(credentials.credentials)
+        except jwt.PyJWTError as exc:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token") from exc
+
+    session_token = request.cookies.get("betman_voice_session")
+    if session_token:
+        try:
+            return decode_token(session_token)
         except jwt.PyJWTError as exc:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token") from exc
 

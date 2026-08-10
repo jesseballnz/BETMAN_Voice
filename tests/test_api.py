@@ -44,3 +44,28 @@ def test_auth_login_and_voices():
     assert voices.status_code == 200
     assert len(voices.json()["voices"]) >= 1
     assert "settings" in voices.json()["voices"][0]
+
+
+def test_admin_requires_authenticated_session():
+    with TestClient(app) as client:
+        response = client.get("/admin")
+    assert response.status_code == 200
+    assert "Admin access required" in response.text
+    assert "Voice Configuration" not in response.text
+    assert "Queue Training" not in response.text
+
+
+def test_admin_console_loads_after_login_cookie():
+    with TestClient(app) as client:
+        login = client.post("/auth/login", json={"email": "betman", "password": "betman1234"})
+        assert login.status_code == 200
+        response = client.get("/admin")
+    assert response.status_code == 200
+    assert "Voice Configuration" in response.text
+    assert "Queue Training" in response.text
+
+
+def test_admin_console_not_available_as_static_asset():
+    with TestClient(app) as client:
+        response = client.get("/static/admin.html")
+    assert response.status_code == 404

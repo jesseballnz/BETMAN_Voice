@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BETMAN Voice Login</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --bg: #0f1216;
+        --panel: #151a20;
+        --line: #2b3541;
+        --muted: #9aa8b6;
+        --text: #eef3f7;
+        --accent: #e0b24b;
+        --danger: #e36b5d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        width: min(420px, calc(100vw - 28px));
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 22px;
+      }
+      h1 { margin: 0 0 4px; font-size: 24px; letter-spacing: 0; }
+      p { margin: 0 0 18px; color: var(--muted); }
+      label { display: grid; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+      input {
+        width: 100%;
+        border: 1px solid #3a4653;
+        border-radius: 6px;
+        background: #0b1015;
+        color: #fff;
+        padding: 10px;
+        font: inherit;
+      }
+      button {
+        width: 100%;
+        margin-top: 16px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #111;
+        padding: 10px 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      #status { min-height: 20px; margin-top: 12px; color: var(--danger); font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>BETMAN Voice</h1>
+      <p>Admin access required.</p>
+      <label>Username <input id="email" value="betman" autocomplete="username" autofocus /></label>
+      <label>Password <input id="password" type="password" autocomplete="current-password" /></label>
+      <button id="loginBtn">Login</button>
+      <div id="status"></div>
+    </main>
+    <script>
+      const status = document.getElementById("status");
+      async function login() {
+        status.textContent = "";
+        const response = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          status.textContent = data.detail || "Login failed";
+          return;
+        }
+        if (data.token) localStorage.setItem("betmanVoiceToken", data.token);
+        window.location.replace("/admin");
+      }
+      document.getElementById("loginBtn").onclick = login;
+      document.getElementById("password").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") login();
+      });
+    </script>
+  </body>
+</html>
