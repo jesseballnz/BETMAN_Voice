@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     env: str = "development"
     public_base_url: str = "http://127.0.0.1:8088"
     secret_key: str = Field(default="dev-only-change-me", min_length=12)
-    admin_email: str = "ops@betman.co.nz"
-    admin_password: str = "change-me"
+    admin_email: str = "betman"
+    admin_password: str = "betman1234"
     default_tenant: str = "betman"
     default_api_key: str = "dev-api-key"
     database_url: str = "sqlite:///./data/betman_voice.db"

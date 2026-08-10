@@ -95,7 +95,7 @@
         <aside class="stack">
           <div class="panel">
             <h2>Auth</h2>
-            <label>Email <input id="email" value="ops@betman.co.nz" autocomplete="username" /></label>
+            <label>Username <input id="email" value="betman" autocomplete="username" /></label>
             <label>Password <input id="password" type="password" autocomplete="current-password" /></label>
             <div class="row">
               <button id="loginBtn">Login</button>
@@ -136,6 +136,7 @@
                 <thead>
                   <tr>
                     <th>Voice</th>
+                    <th>Profile</th>
                     <th>Training</th>
                     <th>Backend</th>
                     <th>Model Ref</th>
@@ -167,6 +168,19 @@
               </label>
               <label>Model ref <input id="editModelRef" placeholder="/models/..." /></label>
             </div>
+            <h3>Profile</h3>
+            <div class="grid-3">
+              <label>Role <input id="profileRole" placeholder="lead-presenter" /></label>
+              <label>Personality <input id="profilePersonality" placeholder="authoritative, composed, sharp" /></label>
+              <label>Pace <input id="profilePace" placeholder="medium" /></label>
+            </div>
+            <div class="grid-2">
+              <label>Tone <input id="profileTone" placeholder="premium broadcast, confident" /></label>
+              <label>Use case <input id="profileUseCase" placeholder="default BETMAN_Content voice" /></label>
+            </div>
+            <label>Delivery <textarea id="profileDelivery" placeholder="How this voice should deliver BETMAN reads"></textarea></label>
+            <label>Pronunciation notes <textarea id="profilePronunciation" placeholder="Racing terms, names, abbreviations and preferred pronunciations"></textarea></label>
+            <label>Prompt guidance <textarea id="profilePrompt" placeholder="Optional model prompt / style guidance for this voice"></textarea></label>
             <label>Settings JSON <textarea id="editSettings" class="mono"></textarea></label>
             <div class="row">
               <button id="saveVoiceBtn">Save Voice</button>
@@ -225,6 +239,7 @@
         $("voiceRows").innerHTML = rows.map((voice) => `
           <tr class="voice-row" data-id="${escapeHtml(voice.voice_id)}" data-active="${voice.voice_id === selectedVoiceId}">
             <td><strong>${escapeHtml(voice.name || voice.voice_id)}</strong><div class="muted mono small">${escapeHtml(voice.voice_id)}</div></td>
+            <td>${escapeHtml(voice.settings?.profile?.role || "")}<div class="muted small">${escapeHtml(voice.settings?.profile?.personality || "")}</div></td>
             <td><span class="status ${escapeHtml(voice.training_status || "")}">${escapeHtml(voice.training_status || "unknown")}</span></td>
             <td>${escapeHtml(voice.model_backend || "")}</td>
             <td class="mono small">${escapeHtml(voice.model_ref || "")}</td>
@@ -250,6 +265,15 @@
         $("editBackend").value = voice.model_backend || "auto";
         $("editModelRef").value = voice.model_ref || "";
         $("editSettings").value = JSON.stringify(voice.settings || {}, null, 2);
+        const profile = voice.settings?.profile || {};
+        $("profileRole").value = profile.role || "";
+        $("profilePersonality").value = profile.personality || "";
+        $("profilePace").value = profile.pace || "";
+        $("profileTone").value = profile.tone || "";
+        $("profileUseCase").value = profile.use_case || "";
+        $("profileDelivery").value = profile.delivery || "";
+        $("profilePronunciation").value = profile.pronunciation || "";
+        $("profilePrompt").value = profile.prompt || "";
         $("testVoiceId").value = voice.voice_id || "";
         renderVoices();
       }
@@ -306,6 +330,17 @@
           model_ref: $("editModelRef").value.trim(),
           sample_url: $("editSampleUrl").value.trim(),
           settings
+        };
+        payload.settings.profile = {
+          ...(payload.settings.profile || {}),
+          role: $("profileRole").value.trim(),
+          personality: $("profilePersonality").value.trim(),
+          pace: $("profilePace").value.trim(),
+          tone: $("profileTone").value.trim(),
+          use_case: $("profileUseCase").value.trim(),
+          delivery: $("profileDelivery").value.trim(),
+          pronunciation: $("profilePronunciation").value.trim(),
+          prompt: $("profilePrompt").value.trim()
         };
         const data = await api("/admin/voices", { method: "POST", body: JSON.stringify(payload) });
         show(data);
@@ -380,7 +415,15 @@
         $("editSampleUrl").value = "";
         $("editBackend").value = "auto";
         $("editModelRef").value = "";
-        $("editSettings").value = JSON.stringify({ training_status: "training_required" }, null, 2);
+        $("profileRole").value = "";
+        $("profilePersonality").value = "";
+        $("profilePace").value = "";
+        $("profileTone").value = "";
+        $("profileUseCase").value = "";
+        $("profileDelivery").value = "";
+        $("profilePronunciation").value = "";
+        $("profilePrompt").value = "";
+        $("editSettings").value = JSON.stringify({ training_status: "training_required", profile: {} }, null, 2);
         renderVoices();
       };
       $("voiceFilter").oninput = renderVoices;

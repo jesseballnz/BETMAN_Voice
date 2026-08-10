@@ -3,7 +3,8 @@ import tempfile
 
 os.environ["BETMAN_VOICE_DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["BETMAN_VOICE_SECRET_KEY"] = "test-secret-key-long"
-os.environ["BETMAN_VOICE_ADMIN_PASSWORD"] = "password"
+os.environ["BETMAN_VOICE_ADMIN_EMAIL"] = "betman"
+os.environ["BETMAN_VOICE_ADMIN_PASSWORD"] = "betman1234"
 os.environ["BETMAN_VOICE_DEFAULT_API_KEY"] = "test-api-key"
 os.environ["BETMAN_VOICE_LOCAL_STORAGE_DIR"] = tempfile.mkdtemp()
 
@@ -36,7 +37,7 @@ def test_api_key_tts_generation():
 
 def test_auth_login_and_voices():
     with TestClient(app) as client:
-        login = client.post("/auth/login", json={"email": "ops@betman.co.nz", "password": "password"})
+        login = client.post("/auth/login", json={"email": "betman", "password": "betman1234"})
         assert login.status_code == 200
         token = login.json()["token"]
         voices = client.get("/voices", headers={"Authorization": f"Bearer {token}"})
