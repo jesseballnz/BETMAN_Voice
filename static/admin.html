@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BETMAN Voice Admin</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { margin: 0; background: #101317; color: #edf1f4; }
+      main { max-width: 1120px; margin: 0 auto; padding: 28px; }
+      header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #28313b; padding-bottom: 18px; }
+      h1 { font-size: 24px; margin: 0; letter-spacing: 0; }
+      section { margin-top: 22px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+      .card { border: 1px solid #2a3440; border-radius: 8px; padding: 16px; background: #151b21; }
+      label { display: block; color: #9fafbd; font-size: 13px; margin: 10px 0 6px; }
+      input, textarea { box-sizing: border-box; width: 100%; border: 1px solid #394552; border-radius: 6px; background: #0c1014; color: #fff; padding: 10px; font: inherit; }
+      textarea { min-height: 130px; resize: vertical; }
+      button { border: 0; border-radius: 6px; background: #e0b24b; color: #101317; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+      pre { overflow: auto; background: #0c1014; border: 1px solid #28313b; border-radius: 6px; padding: 12px; }
+      audio { width: 100%; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>BETMAN Voice</h1>
+        <button id="healthBtn">Check Health</button>
+      </header>
+      <section class="grid">
+        <div class="card">
+          <h2>Login</h2>
+          <label>Email</label>
+          <input id="email" value="ops@betman.co.nz" />
+          <label>Password</label>
+          <input id="password" type="password" />
+          <p><button id="loginBtn">Login</button></p>
+        </div>
+        <div class="card">
+          <h2>Generate</h2>
+          <label>Voice ID</label>
+          <input id="voiceId" value="betman-female-presenter" />
+          <label>Text</label>
+          <textarea id="text">BETMAN markets are live, prices are moving, and the board is talking.</textarea>
+          <p><button id="generateBtn">Generate</button></p>
+          <audio id="player" controls hidden></audio>
+        </div>
+      </section>
+      <section>
+        <pre id="output">{}</pre>
+      </section>
+    </main>
+    <script>
+      let token = "";
+      const out = document.getElementById("output");
+      const show = (value) => { out.textContent = JSON.stringify(value, null, 2); };
+      document.getElementById("healthBtn").onclick = async () => show(await (await fetch("/health")).json());
+      document.getElementById("loginBtn").onclick = async () => {
+        const response = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.value, password: password.value })
+        });
+        const data = await response.json();
+        token = data.token || "";
+        show(data);
+      };
+      document.getElementById("generateBtn").onclick = async () => {
+        const response = await fetch("/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ voiceId: voiceId.value, text: text.value })
+        });
+        const data = await response.json();
+        show(data);
+        if (data.audio_url) {
+          player.src = data.audio_url;
+          player.hidden = false;
+        }
+      };
+    </script>
+  </body>
+</html>

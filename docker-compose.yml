@@ -1,0 +1,46 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${BETMAN_VOICE_PORT:-8088}:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/var/lib/betman-voice
+      - ./models:/models
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn betman_voice.main:app --host 0.0.0.0 --port 8088 --proxy-headers"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/var/lib/betman-voice
+      - ./models:/models
+    command: python -m betman_voice.worker
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-betman_voice}
+      POSTGRES_USER: ${POSTGRES_USER:-betman_voice}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-betman_voice_dev_only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-betman_voice} -d ${POSTGRES_DB:-betman_voice}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
