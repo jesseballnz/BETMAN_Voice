@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     model_dir: Path = Path("./models")
     max_workers: int = 1
     job_poll_seconds: int = 2
+    elevenlabs_poll_seconds: int = 3600
+    training_command: str = ""
     audio_format: str = "wav"
     allow_synthetic_fallback: bool = True
     request_timeout_seconds: int = 120

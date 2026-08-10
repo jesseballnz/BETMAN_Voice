@@ -8,16 +8,25 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy.orm import Session
 
-from betman_voice.api.schemas import LoginRequest, LoginResponse, TtsRequest, TtsResponse, VoiceUpsert
+from betman_voice.api.schemas import (
+    LoginRequest,
+    LoginResponse,
+    TrainingRequest,
+    TrainingResponse,
+    TtsRequest,
+    TtsResponse,
+    VoiceUpsert,
+)
 from betman_voice.core.auth import issue_token, password_verify, require_principal
 from betman_voice.core.config import get_settings
 from betman_voice.core.logging import configure_logging, get_logger
 from betman_voice.core.runtime import detect_runtime
 from betman_voice.db.bootstrap import bootstrap_defaults
-from betman_voice.db.models import GenerationJob, User, Voice
+from betman_voice.db.models import GenerationJob, TrainingJob, User, Voice
 from betman_voice.db.session import Base, SessionLocal, engine, get_db
 from betman_voice.services.jobs import enqueue_generation, run_generation_job
 from betman_voice.services.elevenlabs_import import import_betman_elevenlabs_voices
+from betman_voice.services.training import enqueue_training_job
 
 REQUESTS = Counter("betman_voice_requests_total", "HTTP requests", ["path", "method", "status"])
 LATENCY = Histogram("betman_voice_request_seconds", "HTTP latency", ["path", "method"])
@@ -80,6 +89,9 @@ def create_app() -> FastAPI:
                     "description": row.description,
                     "preview_url": row.sample_url,
                     "model_backend": row.model_backend,
+                    "model_ref": row.model_ref,
+                    "training_status": (row.settings or {}).get("training_status", ""),
+                    "elevenlabs_voice_id": (row.settings or {}).get("elevenlabs_voice_id", ""),
                 }
                 for row in rows
             ]
@@ -120,6 +132,42 @@ def create_app() -> FastAPI:
             raise HTTPException(403, "admin_required")
         api_key = str(body.get("api_key") or "").strip()
         return import_betman_elevenlabs_voices(db, principal["tenant_id"], api_key=api_key)
+
+    @app.post("/admin/voices/{voice_id}/training", response_model=TrainingResponse)
+    def train_voice(
+        voice_id: str,
+        body: TrainingRequest,
+        principal: dict = Depends(require_principal),
+        db: Session = Depends(get_db),
+    ) -> TrainingResponse:
+        if principal.get("role") not in {"admin", "service"}:
+            raise HTTPException(403, "admin_required")
+        try:
+            job = enqueue_training_job(
+                db,
+                principal["tenant_id"],
+                voice_id,
+                source=body.source,
+                request_meta={"force": body.force, "metadata": body.metadata},
+            )
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return _training_response(job)
+
+    @app.get("/training/{job_id}", response_model=TrainingResponse)
+    def training_status(
+        job_id: str,
+        principal: dict = Depends(require_principal),
+        db: Session = Depends(get_db),
+    ) -> TrainingResponse:
+        job = (
+            db.query(TrainingJob)
+            .filter(TrainingJob.id == job_id, TrainingJob.tenant_id == principal["tenant_id"])
+            .first()
+        )
+        if not job:
+            raise HTTPException(404, "training_job_not_found")
+        return _training_response(job)
 
     @app.post("/tts", response_model=TtsResponse)
     def tts(
@@ -232,5 +280,20 @@ def _job_response(job: GenerationJob) -> TtsResponse:
         audio_url=job.audio_url or None,
         backend=job.backend or None,
         duration_ms=job.duration_ms or 0,
+        error=job.error or None,
+    )
+
+
+def _training_response(job: TrainingJob) -> TrainingResponse:
+    return TrainingResponse(
+        ok=job.status in {"queued", "running", "waiting_for_samples", "waiting_for_trainer", "completed"},
+        id=str(job.id),
+        voice_id=job.voice_id,
+        status=job.status,
+        source=job.source,
+        sample_count=job.sample_count or 0,
+        dataset_path=job.dataset_path or "",
+        manifest_path=job.manifest_path or "",
+        model_ref=job.model_ref or "",
         error=job.error or None,
     )

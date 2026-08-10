@@ -29,6 +29,25 @@ class TtsResponse(BaseModel):
     error: str | None = None
 
 
+class TrainingRequest(BaseModel):
+    source: str = "elevenlabs"
+    force: bool = False
+    metadata: dict = Field(default_factory=dict)
+
+
+class TrainingResponse(BaseModel):
+    ok: bool
+    id: str
+    voice_id: str
+    status: str
+    source: str = "elevenlabs"
+    sample_count: int = 0
+    dataset_path: str = ""
+    manifest_path: str = ""
+    model_ref: str = ""
+    error: str | None = None
+
+
 class VoiceUpsert(BaseModel):
     voice_id: str
     name: str
@@ -36,4 +55,4 @@ class VoiceUpsert(BaseModel):
     model_backend: str = "auto"
     model_ref: str = ""
     sample_url: str = ""
-    settings: dict = {}
+    settings: dict = Field(default_factory=dict)

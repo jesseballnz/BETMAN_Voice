@@ -14,10 +14,12 @@ small CPU-safe runtime; install the `models` extra on GPU/model hosts.
 - `src/betman_voice/core` - configuration, auth, logging, metrics, runtime detection.
 - `src/betman_voice/db` - SQLAlchemy models and Postgres session management.
 - `src/betman_voice/inference` - backend abstraction and CPU/GPU backend selection.
-- `src/betman_voice/services` - jobs, tenants, voices, storage, scheduler.
+- `src/betman_voice/services` - generation jobs, training jobs, voices, storage, scheduler.
 - `infra/terraform` - DigitalOcean droplet/firewall/project provisioning.
 - `scripts` - deploy, backup, restore, upgrade, load and failover tests.
 - `scripts/import_elevenlabs.py` - import BETMAN ElevenLabs voice registry for training.
+- `scripts/poll_elevenlabs.py` - refresh ElevenLabs voice metadata on demand.
+- `scripts/train_voice.py` - queue or run a voice training job.
 - `tests` - API/auth/scheduler/backend selection coverage.
 
 ## Local Development
@@ -48,6 +50,15 @@ curl -X POST "$BETMAN_VOICE_URL/v1/text-to-speech/betman-female-presenter" \
   -H "Content-Type: application/json" \
   -d '{"text":"BETMAN markets are live.","model_id":"qwen3-tts-cpu"}' \
   --output speech.wav
+```
+
+Training is exposed as a backend job API:
+
+```bash
+curl -X POST "$BETMAN_VOICE_URL/admin/voices/betman-female-presenter/training" \
+  -H "xi-api-key: $BETMAN_VOICE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"elevenlabs"}'
 ```
 
 ## Deployment Target

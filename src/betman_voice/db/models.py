@@ -93,3 +93,22 @@ class GenerationJob(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TrainingJob(Base):
+    __tablename__ = "training_jobs"
+
+    id: Mapped[str] = uuid_pk()
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), index=True)
+    voice_id: Mapped[str] = mapped_column(String(120), index=True)
+    status: Mapped[str] = mapped_column(String(40), default="queued", index=True)
+    source: Mapped[str] = mapped_column(String(80), default="elevenlabs")
+    sample_count: Mapped[int] = mapped_column(Integer, default=0)
+    dataset_path: Mapped[str] = mapped_column(Text, default="")
+    manifest_path: Mapped[str] = mapped_column(Text, default="")
+    model_ref: Mapped[str] = mapped_column(String(255), default="")
+    error: Mapped[str] = mapped_column(Text, default="")
+    request_meta: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

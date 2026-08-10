@@ -91,6 +91,30 @@ ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose exec -T ap
 Imported voices are intentionally marked `training_required` until the local
 Voicebox/Qwen checkpoints are trained. See `docs/TRAINING.md`.
 
+The worker can poll ElevenLabs automatically when `ELEVENLABS_API_KEY` is set.
+Tune the interval with `BETMAN_VOICE_ELEVENLABS_POLL_SECONDS`; set it to `0` to
+disable polling.
+
+## Queue Voice Training
+
+Training is tracked as a first-class job. Queue it through the API:
+
+```bash
+curl -X POST "$BETMAN_VOICE_URL/admin/voices/betman-female-presenter/training" \
+  -H "xi-api-key: $BETMAN_VOICE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"elevenlabs"}'
+```
+
+Or run from the host:
+
+```bash
+ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose exec -T api python scripts/train_voice.py betman-female-presenter --run-now'
+```
+
+If samples are missing, the job moves to `waiting_for_samples`. If samples exist
+but no trainer command is configured, it moves to `waiting_for_trainer`.
+
 For ElevenLabs-compatible clients:
 
 ```env
