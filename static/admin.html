@@ -83,36 +83,17 @@
       <header>
         <div>
           <h1>BETMAN Voice Admin</h1>
-          <div class="muted small">Voice registry, ElevenLabs import, training queue and synthesis testing</div>
+          <div class="muted small">Voice registry, profiles, training queue and synthesis testing</div>
         </div>
         <div class="row">
           <span id="runtimeBadge" class="status">runtime unknown</span>
           <button id="healthBtn" class="secondary">Health</button>
+          <button id="logoutBtn" class="secondary">Logout</button>
         </div>
       </header>
 
       <section class="layout">
         <aside class="stack">
-          <div class="panel">
-            <h2>Auth</h2>
-            <label>Username <input id="email" value="betman" autocomplete="username" /></label>
-            <label>Password <input id="password" type="password" autocomplete="current-password" /></label>
-            <div class="row">
-              <button id="loginBtn">Login</button>
-              <button id="loadVoicesBtn" class="secondary">Load Voices</button>
-            </div>
-            <div id="authStatus" class="muted small"></div>
-          </div>
-
-          <div class="panel">
-            <h2>ElevenLabs</h2>
-            <label>API key override <input id="elevenKey" type="password" placeholder="optional, uses server env if blank" /></label>
-            <div class="row">
-              <button id="importElevenBtn">Import / Poll</button>
-            </div>
-            <div class="muted small">Imports the configured BETMAN ElevenLabs voices and refreshes sample metadata.</div>
-          </div>
-
           <div class="panel">
             <h2>Synthesis Test</h2>
             <label>Voice ID <input id="testVoiceId" value="betman-female-presenter" /></label>
@@ -140,7 +121,6 @@
                     <th>Training</th>
                     <th>Backend</th>
                     <th>Model Ref</th>
-                    <th>ElevenLabs</th>
                   </tr>
                 </thead>
                 <tbody id="voiceRows"></tbody>
@@ -243,7 +223,6 @@
             <td><span class="status ${escapeHtml(voice.training_status || "")}">${escapeHtml(voice.training_status || "unknown")}</span></td>
             <td>${escapeHtml(voice.model_backend || "")}</td>
             <td class="mono small">${escapeHtml(voice.model_ref || "")}</td>
-            <td class="mono small">${escapeHtml(voice.elevenlabs_voice_id || "")}</td>
           </tr>
         `).join("");
         document.querySelectorAll(".voice-row").forEach((row) => {
@@ -286,18 +265,6 @@
         show(data);
       }
 
-      async function login() {
-        const data = await api("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email: $("email").value, password: $("password").value })
-        });
-        token = data.token || "";
-        localStorage.setItem("betmanVoiceToken", token);
-        setStatus("authStatus", "Logged in");
-        show({ ok: true, token: token ? "stored" : "" });
-        await loadVoices();
-      }
-
       async function health() {
         const data = await (await fetch("/health")).json();
         $("runtimeBadge").textContent = data.runtime?.selected_device || "runtime";
@@ -305,13 +272,10 @@
         show(data);
       }
 
-      async function importElevenLabs() {
-        const data = await api("/admin/import/elevenlabs", {
-          method: "POST",
-          body: JSON.stringify({ api_key: $("elevenKey").value })
-        });
-        show(data);
-        await loadVoices();
+      async function logout() {
+        localStorage.removeItem("betmanVoiceToken");
+        await fetch("/auth/logout", { method: "POST" }).catch(() => {});
+        window.location.replace("/admin");
       }
 
       async function saveVoice() {
@@ -397,9 +361,7 @@
       }
 
       $("healthBtn").onclick = () => health().catch((error) => show({ ok: false, error: error.message }));
-      $("loginBtn").onclick = () => login().catch((error) => setStatus("authStatus", error.message, false));
-      $("loadVoicesBtn").onclick = () => loadVoices().catch((error) => show({ ok: false, error: error.message }));
-      $("importElevenBtn").onclick = () => importElevenLabs().catch((error) => show({ ok: false, error: error.message }));
+      $("logoutBtn").onclick = () => logout();
       $("saveVoiceBtn").onclick = () => saveVoice().catch((error) => show({ ok: false, error: error.message }));
       $("trainVoiceBtn").onclick = () => queueTraining().catch((error) => showTraining({ ok: false, error: error.message }));
       $("refreshTrainingBtn").onclick = () => refreshTraining().catch((error) => showTraining({ ok: false, error: error.message }));
@@ -429,7 +391,7 @@
       $("voiceFilter").oninput = renderVoices;
 
       health().catch(() => {});
-      if (token) loadVoices().catch(() => setStatus("authStatus", "Stored token needs login", false));
+      loadVoices().catch((error) => show({ ok: false, error: error.message }));
     </script>
   </body>
 </html>

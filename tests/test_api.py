@@ -63,6 +63,10 @@ def test_admin_console_loads_after_login_cookie():
     assert response.status_code == 200
     assert "Voice Configuration" in response.text
     assert "Queue Training" in response.text
+    assert "<h2>Auth</h2>" not in response.text
+    assert "API key override" not in response.text
+    assert "Import / Poll" not in response.text
+    assert "ElevenLabs" not in response.text
 
 
 def test_admin_console_not_available_as_static_asset():
