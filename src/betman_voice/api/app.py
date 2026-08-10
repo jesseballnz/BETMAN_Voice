@@ -195,9 +195,24 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "audio_not_found")
         return FileResponse(target, media_type="audio/wav")
 
-    static_dir = Path(__file__).resolve().parents[3] / "static"
+    static_dir = next(
+        (
+            candidate
+            for candidate in (
+                Path.cwd() / "static",
+                Path(__file__).resolve().parents[3] / "static",
+                Path(__file__).resolve().parents[2] / "static",
+            )
+            if (candidate / "admin.html").exists()
+        ),
+        Path.cwd() / "static",
+    )
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    @app.get("/", response_class=HTMLResponse)
+    def root_ui():
+        return admin_ui()
 
     @app.get("/admin", response_class=HTMLResponse)
     def admin_ui():
