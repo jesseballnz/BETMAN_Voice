@@ -92,6 +92,7 @@ def create_app() -> FastAPI:
                     "model_ref": row.model_ref,
                     "training_status": (row.settings or {}).get("training_status", ""),
                     "elevenlabs_voice_id": (row.settings or {}).get("elevenlabs_voice_id", ""),
+                    "settings": row.settings or {},
                 }
                 for row in rows
             ]

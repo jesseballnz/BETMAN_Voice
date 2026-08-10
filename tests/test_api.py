@@ -42,3 +42,4 @@ def test_auth_login_and_voices():
         voices = client.get("/voices", headers={"Authorization": f"Bearer {token}"})
     assert voices.status_code == 200
     assert len(voices.json()["voices"]) >= 1
+    assert "settings" in voices.json()["voices"][0]

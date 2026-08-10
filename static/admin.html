@@ -5,79 +5,388 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>BETMAN Voice Admin</title>
     <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-      body { margin: 0; background: #101317; color: #edf1f4; }
-      main { max-width: 1120px; margin: 0 auto; padding: 28px; }
-      header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #28313b; padding-bottom: 18px; }
-      h1 { font-size: 24px; margin: 0; letter-spacing: 0; }
-      section { margin-top: 22px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-      .card { border: 1px solid #2a3440; border-radius: 8px; padding: 16px; background: #151b21; }
-      label { display: block; color: #9fafbd; font-size: 13px; margin: 10px 0 6px; }
-      input, textarea { box-sizing: border-box; width: 100%; border: 1px solid #394552; border-radius: 6px; background: #0c1014; color: #fff; padding: 10px; font: inherit; }
-      textarea { min-height: 130px; resize: vertical; }
-      button { border: 0; border-radius: 6px; background: #e0b24b; color: #101317; padding: 10px 14px; font-weight: 700; cursor: pointer; }
-      pre { overflow: auto; background: #0c1014; border: 1px solid #28313b; border-radius: 6px; padding: 12px; }
-      audio { width: 100%; margin-top: 12px; }
+      :root {
+        color-scheme: dark;
+        --bg: #0f1216;
+        --panel: #151a20;
+        --panel-2: #10151b;
+        --line: #2b3541;
+        --muted: #9aa8b6;
+        --text: #eef3f7;
+        --accent: #e0b24b;
+        --danger: #e36b5d;
+        --ok: #6fc28b;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); }
+      main { max-width: 1440px; margin: 0 auto; padding: 24px; }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+      h1, h2, h3 { margin: 0; letter-spacing: 0; }
+      h1 { font-size: 24px; }
+      h2 { font-size: 16px; margin-bottom: 12px; }
+      h3 { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+      .layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+      .stack { display: grid; gap: 12px; }
+      .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+      input, textarea, select {
+        width: 100%;
+        border: 1px solid #3a4653;
+        border-radius: 6px;
+        background: #0b1015;
+        color: #fff;
+        padding: 9px 10px;
+        font: inherit;
+      }
+      textarea { min-height: 110px; resize: vertical; }
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #111;
+        padding: 9px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary { background: #25303b; color: var(--text); border: 1px solid #3a4653; }
+      button.danger { background: var(--danger); color: #111; }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { border-bottom: 1px solid var(--line); padding: 9px 8px; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; font-weight: 600; }
+      tr[data-active="true"] { background: #202833; }
+      .voice-row { cursor: pointer; }
+      .status { display: inline-flex; align-items: center; min-height: 22px; border-radius: 999px; padding: 2px 8px; background: #26313d; color: var(--muted); font-size: 12px; }
+      .status.ready, .status.completed { background: #173224; color: var(--ok); }
+      .status.failed { background: #3a1f1c; color: #ff9c91; }
+      .status.waiting_for_samples, .status.waiting_for_trainer { background: #3a321b; color: #f1cf73; }
+      .muted { color: var(--muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .small { font-size: 12px; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      pre { margin: 0; overflow: auto; max-height: 280px; background: #0b1015; border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+      audio { width: 100%; }
+      .hidden { display: none !important; }
+      @media (max-width: 980px) {
+        main { padding: 14px; }
+        .layout, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        header { align-items: flex-start; flex-direction: column; }
+      }
     </style>
   </head>
   <body>
     <main>
       <header>
-        <h1>BETMAN Voice</h1>
-        <button id="healthBtn">Check Health</button>
+        <div>
+          <h1>BETMAN Voice Admin</h1>
+          <div class="muted small">Voice registry, ElevenLabs import, training queue and synthesis testing</div>
+        </div>
+        <div class="row">
+          <span id="runtimeBadge" class="status">runtime unknown</span>
+          <button id="healthBtn" class="secondary">Health</button>
+        </div>
       </header>
-      <section class="grid">
-        <div class="card">
-          <h2>Login</h2>
-          <label>Email</label>
-          <input id="email" value="ops@betman.co.nz" />
-          <label>Password</label>
-          <input id="password" type="password" />
-          <p><button id="loginBtn">Login</button></p>
-        </div>
-        <div class="card">
-          <h2>Generate</h2>
-          <label>Voice ID</label>
-          <input id="voiceId" value="betman-female-presenter" />
-          <label>Text</label>
-          <textarea id="text">BETMAN markets are live, prices are moving, and the board is talking.</textarea>
-          <p><button id="generateBtn">Generate</button></p>
-          <audio id="player" controls hidden></audio>
-        </div>
-      </section>
-      <section>
-        <pre id="output">{}</pre>
+
+      <section class="layout">
+        <aside class="stack">
+          <div class="panel">
+            <h2>Auth</h2>
+            <label>Email <input id="email" value="ops@betman.co.nz" autocomplete="username" /></label>
+            <label>Password <input id="password" type="password" autocomplete="current-password" /></label>
+            <div class="row">
+              <button id="loginBtn">Login</button>
+              <button id="loadVoicesBtn" class="secondary">Load Voices</button>
+            </div>
+            <div id="authStatus" class="muted small"></div>
+          </div>
+
+          <div class="panel">
+            <h2>ElevenLabs</h2>
+            <label>API key override <input id="elevenKey" type="password" placeholder="optional, uses server env if blank" /></label>
+            <div class="row">
+              <button id="importElevenBtn">Import / Poll</button>
+            </div>
+            <div class="muted small">Imports the configured BETMAN ElevenLabs voices and refreshes sample metadata.</div>
+          </div>
+
+          <div class="panel">
+            <h2>Synthesis Test</h2>
+            <label>Voice ID <input id="testVoiceId" value="betman-female-presenter" /></label>
+            <label>Text <textarea id="testText">BETMAN markets are live, prices are moving, and the board is talking.</textarea></label>
+            <button id="generateBtn">Generate</button>
+            <audio id="player" controls class="hidden"></audio>
+          </div>
+        </aside>
+
+        <section class="stack">
+          <div class="panel">
+            <div class="between">
+              <h2>Voices</h2>
+              <div class="row">
+                <input id="voiceFilter" placeholder="Filter voices" />
+                <button id="newVoiceBtn" class="secondary">New</button>
+              </div>
+            </div>
+            <div style="overflow:auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Voice</th>
+                    <th>Training</th>
+                    <th>Backend</th>
+                    <th>Model Ref</th>
+                    <th>ElevenLabs</th>
+                  </tr>
+                </thead>
+                <tbody id="voiceRows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="between">
+              <h2>Voice Configuration</h2>
+              <span id="selectedBadge" class="status">none selected</span>
+            </div>
+            <div class="grid-2">
+              <label>Voice ID <input id="editVoiceId" /></label>
+              <label>Name <input id="editName" /></label>
+              <label>Description <input id="editDescription" /></label>
+              <label>Sample / preview URL <input id="editSampleUrl" /></label>
+              <label>Backend
+                <select id="editBackend">
+                  <option value="auto">auto</option>
+                  <option value="qwen-tts">qwen-tts</option>
+                  <option value="voicebox">voicebox</option>
+                  <option value="synthetic-cpu-fallback">synthetic-cpu-fallback</option>
+                </select>
+              </label>
+              <label>Model ref <input id="editModelRef" placeholder="/models/..." /></label>
+            </div>
+            <label>Settings JSON <textarea id="editSettings" class="mono"></textarea></label>
+            <div class="row">
+              <button id="saveVoiceBtn">Save Voice</button>
+              <button id="trainVoiceBtn" class="secondary">Queue Training</button>
+              <button id="refreshTrainingBtn" class="secondary">Refresh Training</button>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="panel">
+              <h2>Training Job</h2>
+              <pre id="trainingOutput">{}</pre>
+            </div>
+            <div class="panel">
+              <h2>Output</h2>
+              <pre id="output">{}</pre>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
+
     <script>
-      let token = "";
-      const out = document.getElementById("output");
-      const show = (value) => { out.textContent = JSON.stringify(value, null, 2); };
-      document.getElementById("healthBtn").onclick = async () => show(await (await fetch("/health")).json());
-      document.getElementById("loginBtn").onclick = async () => {
-        const response = await fetch("/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.value, password: password.value })
+      let token = localStorage.getItem("betmanVoiceToken") || "";
+      let voices = [];
+      let selectedVoiceId = "";
+      let selectedTrainingJobId = "";
+
+      const $ = (id) => document.getElementById(id);
+      const show = (value) => { $("output").textContent = JSON.stringify(value, null, 2); };
+      const showTraining = (value) => { $("trainingOutput").textContent = JSON.stringify(value, null, 2); };
+      const authHeaders = () => token ? { Authorization: `Bearer ${token}` } : {};
+
+      async function api(path, options = {}) {
+        const headers = { ...(options.headers || {}), ...authHeaders() };
+        if (options.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+        const response = await fetch(path, { ...options, headers });
+        const type = response.headers.get("content-type") || "";
+        const data = type.includes("application/json") ? await response.json() : await response.text();
+        if (!response.ok) throw new Error(typeof data === "string" ? data : (data.detail || data.error || response.statusText));
+        return data;
+      }
+
+      function setStatus(id, message, ok = true) {
+        const node = $(id);
+        node.textContent = message;
+        node.style.color = ok ? "var(--ok)" : "var(--danger)";
+      }
+
+      function renderVoices() {
+        const filter = $("voiceFilter").value.trim().toLowerCase();
+        const rows = voices.filter((voice) => {
+          const haystack = `${voice.voice_id} ${voice.name} ${voice.training_status} ${voice.elevenlabs_voice_id}`.toLowerCase();
+          return !filter || haystack.includes(filter);
         });
-        const data = await response.json();
-        token = data.token || "";
+        $("voiceRows").innerHTML = rows.map((voice) => `
+          <tr class="voice-row" data-id="${escapeHtml(voice.voice_id)}" data-active="${voice.voice_id === selectedVoiceId}">
+            <td><strong>${escapeHtml(voice.name || voice.voice_id)}</strong><div class="muted mono small">${escapeHtml(voice.voice_id)}</div></td>
+            <td><span class="status ${escapeHtml(voice.training_status || "")}">${escapeHtml(voice.training_status || "unknown")}</span></td>
+            <td>${escapeHtml(voice.model_backend || "")}</td>
+            <td class="mono small">${escapeHtml(voice.model_ref || "")}</td>
+            <td class="mono small">${escapeHtml(voice.elevenlabs_voice_id || "")}</td>
+          </tr>
+        `).join("");
+        document.querySelectorAll(".voice-row").forEach((row) => {
+          row.onclick = () => selectVoice(row.dataset.id);
+        });
+      }
+
+      function selectVoice(voiceId) {
+        const voice = voices.find((entry) => entry.voice_id === voiceId);
+        if (!voice) return;
+        selectedVoiceId = voice.voice_id;
+        selectedTrainingJobId = voice.settings?.training_job_id || "";
+        $("selectedBadge").textContent = voice.training_status || "selected";
+        $("selectedBadge").className = `status ${voice.training_status || ""}`;
+        $("editVoiceId").value = voice.voice_id || "";
+        $("editName").value = voice.name || "";
+        $("editDescription").value = voice.description || "";
+        $("editSampleUrl").value = voice.preview_url || "";
+        $("editBackend").value = voice.model_backend || "auto";
+        $("editModelRef").value = voice.model_ref || "";
+        $("editSettings").value = JSON.stringify(voice.settings || {}, null, 2);
+        $("testVoiceId").value = voice.voice_id || "";
+        renderVoices();
+      }
+
+      async function loadVoices() {
+        const data = await api("/voices");
+        voices = data.voices || [];
+        renderVoices();
+        if (!selectedVoiceId && voices.length) selectVoice(voices[0].voice_id);
         show(data);
-      };
-      document.getElementById("generateBtn").onclick = async () => {
-        const response = await fetch("/tts", {
+      }
+
+      async function login() {
+        const data = await api("/auth/login", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-          body: JSON.stringify({ voiceId: voiceId.value, text: text.value })
+          body: JSON.stringify({ email: $("email").value, password: $("password").value })
         });
-        const data = await response.json();
+        token = data.token || "";
+        localStorage.setItem("betmanVoiceToken", token);
+        setStatus("authStatus", "Logged in");
+        show({ ok: true, token: token ? "stored" : "" });
+        await loadVoices();
+      }
+
+      async function health() {
+        const data = await (await fetch("/health")).json();
+        $("runtimeBadge").textContent = data.runtime?.selected_device || "runtime";
+        $("runtimeBadge").className = `status ${data.ok ? "ready" : "failed"}`;
+        show(data);
+      }
+
+      async function importElevenLabs() {
+        const data = await api("/admin/import/elevenlabs", {
+          method: "POST",
+          body: JSON.stringify({ api_key: $("elevenKey").value })
+        });
+        show(data);
+        await loadVoices();
+      }
+
+      async function saveVoice() {
+        let settings = {};
+        try {
+          settings = JSON.parse($("editSettings").value || "{}");
+        } catch (error) {
+          show({ ok: false, error: "Invalid settings JSON" });
+          return;
+        }
+        const payload = {
+          voice_id: $("editVoiceId").value.trim(),
+          name: $("editName").value.trim(),
+          description: $("editDescription").value.trim(),
+          model_backend: $("editBackend").value,
+          model_ref: $("editModelRef").value.trim(),
+          sample_url: $("editSampleUrl").value.trim(),
+          settings
+        };
+        const data = await api("/admin/voices", { method: "POST", body: JSON.stringify(payload) });
+        show(data);
+        selectedVoiceId = payload.voice_id;
+        await loadVoices();
+      }
+
+      async function queueTraining() {
+        const voiceId = $("editVoiceId").value.trim();
+        if (!voiceId) return;
+        const data = await api(`/admin/voices/${encodeURIComponent(voiceId)}/training`, {
+          method: "POST",
+          body: JSON.stringify({ source: "elevenlabs" })
+        });
+        selectedTrainingJobId = data.id;
+        showTraining(data);
+        await loadVoices();
+      }
+
+      async function refreshTraining() {
+        if (!selectedTrainingJobId) {
+          const settings = JSON.parse($("editSettings").value || "{}");
+          selectedTrainingJobId = settings.training_job_id || "";
+        }
+        if (!selectedTrainingJobId) {
+          showTraining({ ok: false, error: "No training job selected for this voice" });
+          return;
+        }
+        const data = await api(`/training/${encodeURIComponent(selectedTrainingJobId)}`);
+        showTraining(data);
+        await loadVoices();
+      }
+
+      async function generate() {
+        const data = await api("/tts", {
+          method: "POST",
+          body: JSON.stringify({ voiceId: $("testVoiceId").value, text: $("testText").value })
+        });
         show(data);
         if (data.audio_url) {
-          player.src = data.audio_url;
-          player.hidden = false;
+          $("player").src = data.audio_url;
+          $("player").classList.remove("hidden");
         }
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;"
+        }[char]));
+      }
+
+      $("healthBtn").onclick = () => health().catch((error) => show({ ok: false, error: error.message }));
+      $("loginBtn").onclick = () => login().catch((error) => setStatus("authStatus", error.message, false));
+      $("loadVoicesBtn").onclick = () => loadVoices().catch((error) => show({ ok: false, error: error.message }));
+      $("importElevenBtn").onclick = () => importElevenLabs().catch((error) => show({ ok: false, error: error.message }));
+      $("saveVoiceBtn").onclick = () => saveVoice().catch((error) => show({ ok: false, error: error.message }));
+      $("trainVoiceBtn").onclick = () => queueTraining().catch((error) => showTraining({ ok: false, error: error.message }));
+      $("refreshTrainingBtn").onclick = () => refreshTraining().catch((error) => showTraining({ ok: false, error: error.message }));
+      $("generateBtn").onclick = () => generate().catch((error) => show({ ok: false, error: error.message }));
+      $("newVoiceBtn").onclick = () => {
+        selectedVoiceId = "";
+        selectedTrainingJobId = "";
+        $("selectedBadge").textContent = "new voice";
+        $("selectedBadge").className = "status";
+        $("editVoiceId").value = "";
+        $("editName").value = "";
+        $("editDescription").value = "";
+        $("editSampleUrl").value = "";
+        $("editBackend").value = "auto";
+        $("editModelRef").value = "";
+        $("editSettings").value = JSON.stringify({ training_status: "training_required" }, null, 2);
+        renderVoices();
       };
+      $("voiceFilter").oninput = renderVoices;
+
+      health().catch(() => {});
+      if (token) loadVoices().catch(() => setStatus("authStatus", "Stored token needs login", false));
     </script>
   </body>
 </html>
