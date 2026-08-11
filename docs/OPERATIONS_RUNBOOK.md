@@ -13,8 +13,8 @@ Deployment target defaults to `root@170.64.201.92:/opt/betman/BETMAN_Voice`.
 ## Health
 
 ```bash
-curl http://170.64.201.92:8088/health
-curl http://170.64.201.92:8088/metrics
+curl https://170.64.201.92:8088/health
+curl https://170.64.201.92:8088/metrics
 ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose ps'
 ```
 
@@ -60,7 +60,7 @@ runs migrations, and checks `/health`.
 ## Load Test
 
 ```bash
-locust -f scripts/load_test.py --host http://170.64.201.92:8088
+locust -f scripts/load_test.py --host https://170.64.201.92:8088
 ```
 
 ## Failover Test
@@ -78,7 +78,7 @@ Set these through the BETMAN_Content config UI or environment:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://170.64.201.92:8088
+DJ_VOICEBOX_BASE_URL=https://170.64.201.92:8088
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
 ```
 
@@ -118,6 +118,6 @@ but no trainer command is configured, it moves to `waiting_for_trainer`.
 For ElevenLabs-compatible clients:
 
 ```env
-ELEVENLABS_BASE_URL=http://170.64.201.92:8088
+ELEVENLABS_BASE_URL=https://170.64.201.92:8088
 ELEVENLABS_API_KEY=<BETMAN_VOICE_DEFAULT_API_KEY>
 ```

@@ -38,7 +38,7 @@ Provision through BETMAN_Content's config area:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://170.64.201.92:8088
+DJ_VOICEBOX_BASE_URL=https://170.64.201.92:8088
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
 ```
 

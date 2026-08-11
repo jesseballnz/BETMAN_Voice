@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "${BETMAN_VOICE_PORT:-8088}:8088"
+      - "127.0.0.1:${BETMAN_VOICE_INTERNAL_PORT:-18088}:8088"
     depends_on:
       postgres:
         condition: service_healthy

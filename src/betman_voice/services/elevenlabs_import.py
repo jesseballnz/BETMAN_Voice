@@ -54,6 +54,7 @@ def import_betman_elevenlabs_voices(
     imported = []
 
     for spec in specs:
+        model_ref = spec.get("model_ref", "piper:en_US-amy-medium")
         remote = remote_by_id.get(spec["voice_id"], {})
         voice = (
             db.query(Voice)
@@ -66,13 +67,14 @@ def import_betman_elevenlabs_voices(
         voice.name = remote.get("name") or spec["name"]
         voice.description = "Imported from ElevenLabs for BETMAN_Voice local training."
         voice.model_backend = "voicebox"
+        voice.model_ref = model_ref
         samples = remote.get("samples") or []
         voice.settings = {
             **(voice.settings or {}),
             "source": "elevenlabs",
             "elevenlabs_voice_id": spec["voice_id"],
             "local_alias": spec.get("local_alias", ""),
-            "model_ref": spec.get("model_ref", "piper:en_US-amy-medium"),
+            "model_ref": model_ref,
             "roles": spec.get("roles", []),
             "remote_sample_count": len(samples),
             "training_status": "training_required",
@@ -93,11 +95,12 @@ def import_betman_elevenlabs_voices(
             alias_voice.name = spec["name"]
             alias_voice.description = f"BETMAN VoiceBox alias mapped from ElevenLabs presenter {spec['voice_id']}."
             alias_voice.model_backend = "voicebox"
+            alias_voice.model_ref = model_ref
             alias_voice.settings = {
                 **(alias_voice.settings or {}),
                 "source": "elevenlabs_alias",
                 "elevenlabs_voice_id": spec["voice_id"],
-                "model_ref": spec.get("model_ref", "piper:en_US-amy-medium"),
+                "model_ref": model_ref,
                 "roles": spec.get("roles", []),
                 "training_status": "training_required",
             }
