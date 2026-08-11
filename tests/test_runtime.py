@@ -1,5 +1,6 @@
 from betman_voice.core.runtime import detect_runtime
 from betman_voice.inference.backends import SyntheticCpuBackend, select_backend
+import pytest
 
 
 def test_runtime_detection_returns_device():
@@ -16,4 +17,5 @@ def test_safe_cpu_fallback_generates_wav():
 
 
 def test_backend_selection_always_returns_backend():
-    assert select_backend("auto").name
+    with pytest.raises(RuntimeError, match="tts_backend_unavailable"):
+        select_backend("auto")

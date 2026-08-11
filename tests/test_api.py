@@ -8,6 +8,10 @@ os.environ["BETMAN_VOICE_ADMIN_PASSWORD"] = "betman1234"
 os.environ["BETMAN_VOICE_DEFAULT_API_KEY"] = "test-api-key"
 os.environ["BETMAN_VOICE_LOCAL_STORAGE_DIR"] = tempfile.mkdtemp()
 
+from betman_voice.core.config import get_settings
+
+get_settings.cache_clear()
+
 from betman_voice.api.app import create_app
 from fastapi.testclient import TestClient
 
@@ -30,9 +34,13 @@ def test_api_key_tts_generation():
         )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["ok"] is True
-    assert payload["audio_url"]
-    assert payload["backend"] in {"qwen3-tts", "synthetic-cpu-fallback"}
+    assert payload["status"] in {"completed", "failed"}
+    assert payload.get("backend") != "elevenlabs"
+    if payload["status"] == "completed":
+        assert payload["ok"] is True
+        assert payload["audio_url"]
+    else:
+        assert "piper" in payload.get("error", "") or "tts_backend_unavailable" in payload.get("error", "")
 
 
 def test_auth_login_and_voices():

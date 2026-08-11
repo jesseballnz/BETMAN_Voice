@@ -98,6 +98,16 @@ def bootstrap_defaults(db: Session) -> None:
             "use_case": "social cuts, promos and lighter BETMAN segments",
         },
     }
+    voice_model_refs = {
+        "2Ei5B6ir7ZzmLurX6KU4": "piper:en_US-amy-medium",
+        "betman-female-presenter": "piper:en_US-amy-medium",
+        "9K2UBMDog21eSfMdLhEX": "piper:en_US-amy-medium",
+        "betman-comms-girl": "piper:en_US-amy-medium",
+        "pDZ0CqONaFi2LrK1f413": "piper:en_US-ryan-high",
+        "torey-slatter": "piper:en_US-ryan-high",
+        "hp7ETPcMxGdsmsPtJd8I": "piper:en_US-ryan-high",
+        "paul-social-outgoing-kind": "piper:en_US-ryan-high",
+    }
 
     if settings.default_api_key:
         existing_key = db.query(ApiKey).filter(ApiKey.key_hash == hash_secret(settings.default_api_key)).first()
@@ -127,10 +137,12 @@ def bootstrap_defaults(db: Session) -> None:
             .first()
         )
         profile = voice_profiles.get(voice_id, {})
+        model_ref = voice_model_refs.get(voice_id, "piper:en_US-amy-medium")
         default_settings = {
             "source": "bootstrap",
             "training_status": "training_required",
             "profile": profile,
+            "model_ref": model_ref,
         }
         if not voice:
             db.add(
@@ -138,7 +150,8 @@ def bootstrap_defaults(db: Session) -> None:
                     tenant_id=tenant.id,
                     voice_id=voice_id,
                     name=name,
-                    model_backend="auto",
+                    model_backend="voicebox",
+                    model_ref=model_ref,
                     settings=default_settings,
                 )
             )
@@ -146,6 +159,9 @@ def bootstrap_defaults(db: Session) -> None:
             existing = dict(voice.settings or {})
             existing.setdefault("training_status", "training_required")
             existing.setdefault("profile", profile)
+            existing.setdefault("model_ref", model_ref)
+            voice.model_backend = "voicebox"
+            voice.model_ref = voice.model_ref or model_ref
             voice.settings = existing
 
     db.commit()

@@ -24,15 +24,17 @@ class Settings(BaseSettings):
     spaces_access_key_id: str = ""
     spaces_secret_access_key: str = ""
     spaces_public_base_url: str = ""
-    model_backend: str = "auto"
+    model_backend: str = "voicebox"
     model_name: str = "qwen3-tts"
     model_dir: Path = Path("./models")
+    piper_model_path: Path = Path("./models/piper/en_US-amy-medium.onnx")
+    piper_config_path: Path = Path("./models/piper/en_US-amy-medium.onnx.json")
     max_workers: int = 1
     job_poll_seconds: int = 2
     elevenlabs_poll_seconds: int = 3600
     training_command: str = ""
     audio_format: str = "wav"
-    allow_synthetic_fallback: bool = True
+    allow_synthetic_fallback: bool = False
     request_timeout_seconds: int = 120
 
 

@@ -198,6 +198,7 @@ def create_app() -> FastAPI:
             body.text,
             model_id=body.model_id or "",
             request_meta={"voice_settings": body.voice_settings or {}, "compat": "betman"},
+            initial_status="queued" if body.async_job else "running",
         )
         if body.async_job:
             return TtsResponse(ok=True, id=str(job.id), status=job.status)
@@ -237,6 +238,7 @@ def create_app() -> FastAPI:
             text,
             model_id=str(body.get("model_id") or ""),
             request_meta={"voice_settings": body.get("voice_settings") or {}, "compat": "elevenlabs"},
+            initial_status="running",
         )
         job = run_generation_job(db, job)
         GENERATIONS.labels(job.status, job.backend or "none").inc()

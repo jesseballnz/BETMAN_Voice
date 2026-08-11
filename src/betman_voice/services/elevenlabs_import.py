@@ -17,24 +17,28 @@ BETMAN_ELEVENLABS_VOICES = [
         "name": "Paul - Social, Out-going and Kind",
         "roles": ["boss"],
         "local_alias": "paul-social-outgoing-kind",
+        "model_ref": "piper:en_US-ryan-high",
     },
     {
         "voice_id": "9K2UBMDog21eSfMdLhEX",
         "name": "Betman Comms Girl",
         "roles": ["conversation", "comms", "control-room", "general-banter"],
         "local_alias": "betman-comms-girl",
+        "model_ref": "piper:en_US-amy-medium",
     },
     {
         "voice_id": "2Ei5B6ir7ZzmLurX6KU4",
         "name": "BETMAN Female Presenter",
         "roles": ["presenter", "market-mover", "interesting-runner"],
         "local_alias": "betman-female-presenter",
+        "model_ref": "piper:en_US-amy-medium",
     },
     {
         "voice_id": "pDZ0CqONaFi2LrK1f413",
         "name": "Torey Slatter",
         "roles": ["junior-analyst", "upcoming-edge", "signal-proof"],
         "local_alias": "torey-slatter",
+        "model_ref": "piper:en_US-ryan-high",
     },
 ]
 
@@ -61,17 +65,18 @@ def import_betman_elevenlabs_voices(
             db.add(voice)
         voice.name = remote.get("name") or spec["name"]
         voice.description = "Imported from ElevenLabs for BETMAN_Voice local training."
-        voice.model_backend = "auto"
+        voice.model_backend = "voicebox"
         samples = remote.get("samples") or []
         voice.settings = {
             **(voice.settings or {}),
             "source": "elevenlabs",
             "elevenlabs_voice_id": spec["voice_id"],
             "local_alias": spec.get("local_alias", ""),
+            "model_ref": spec.get("model_ref", "piper:en_US-amy-medium"),
             "roles": spec.get("roles", []),
             "remote_sample_count": len(samples),
             "training_status": "training_required",
-            "training_note": "Imported voice registry. Train local Qwen/Voicebox checkpoint before marking ready.",
+            "training_note": "Imported ElevenLabs mapping metadata. Synthesis stays on local BETMAN VoiceBox/Piper until a trained local checkpoint replaces it.",
         }
         imported.append({"voice_id": voice.voice_id, "name": voice.name, "samples": len(samples)})
 
@@ -86,12 +91,13 @@ def import_betman_elevenlabs_voices(
                 alias_voice = Voice(tenant_id=tenant_id, voice_id=alias, name=spec["name"])
                 db.add(alias_voice)
             alias_voice.name = spec["name"]
-            alias_voice.description = f"BETMAN alias for ElevenLabs voice {spec['voice_id']}."
-            alias_voice.model_backend = "auto"
+            alias_voice.description = f"BETMAN VoiceBox alias mapped from ElevenLabs presenter {spec['voice_id']}."
+            alias_voice.model_backend = "voicebox"
             alias_voice.settings = {
                 **(alias_voice.settings or {}),
                 "source": "elevenlabs_alias",
                 "elevenlabs_voice_id": spec["voice_id"],
+                "model_ref": spec.get("model_ref", "piper:en_US-amy-medium"),
                 "roles": spec.get("roles", []),
                 "training_status": "training_required",
             }
