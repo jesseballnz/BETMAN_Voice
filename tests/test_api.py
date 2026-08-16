@@ -81,3 +81,55 @@ def test_admin_console_not_available_as_static_asset():
     with TestClient(app) as client:
         response = client.get("/static/admin.html")
     assert response.status_code == 404
+
+
+def test_voice_settings_fill_blank_request_profile_from_registered_voice():
+    with TestClient(app) as client:
+        response = client.post(
+            "/tts",
+            headers={"xi-api-key": "test-api-key"},
+            json={
+                "voiceId": "betman-female-presenter",
+                "text": "Markets are live.",
+                "voice_settings": {
+                    "presenter": {
+                        "name": "BETMAN FEMALE",
+                        "role": "market-mover",
+                        "profile": {
+                            "role": "market-mover",
+                            "personality": "",
+                            "tone": "",
+                            "delivery": "",
+                            "pace": "",
+                            "useCase": "",
+                        },
+                    },
+                    "profile": {
+                        "role": "market-mover",
+                        "personality": "",
+                        "tone": "",
+                        "delivery": "",
+                        "pace": "",
+                        "useCase": "",
+                    },
+                },
+            },
+        )
+    assert response.status_code == 200
+
+    from betman_voice.db.models import GenerationJob, Voice
+    from betman_voice.db.session import SessionLocal
+    from betman_voice.services.jobs import build_effective_voice_settings
+
+    with SessionLocal() as db:
+        job = db.query(GenerationJob).order_by(GenerationJob.created_at.desc()).first()
+        voice = (
+            db.query(Voice)
+            .filter(Voice.tenant_id == job.tenant_id, Voice.voice_id == job.voice_id)
+            .first()
+        )
+        settings = build_effective_voice_settings(voice, job.request_meta["voice_settings"])
+
+    assert settings["profile"]["personality"] == "authoritative, composed, sharp racing presenter"
+    assert settings["profile"]["tone"] == "premium broadcast, confident, concise"
+    assert settings["request_presenter"]["profile"]["personality"] == "authoritative, composed, sharp racing presenter"

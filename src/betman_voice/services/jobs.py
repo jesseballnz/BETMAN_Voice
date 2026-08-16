@@ -8,6 +8,55 @@ from betman_voice.core.config import get_settings
 from betman_voice.db.models import GenerationJob, Voice
 from betman_voice.inference.backends import SynthesisRequest, select_backend
 from betman_voice.services.storage import storage
+from betman_voice.services.text_normalizer import normalize_racing_text
+
+PROFILE_KEYS = ("role", "personality", "tone", "delivery", "pace", "use_case", "useCase")
+
+
+def _string_map(value: dict | None) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): str(raw).strip() for key, raw in value.items() if str(raw or "").strip()}
+
+
+def _merge_profile(default_profile: dict | None, request_profile: dict | None) -> dict:
+    merged = _string_map(default_profile)
+    requested = _string_map(request_profile)
+    for key in PROFILE_KEYS:
+        if requested.get(key):
+            merged[key] = requested[key]
+    if merged.get("useCase") and not merged.get("use_case"):
+        merged["use_case"] = merged["useCase"]
+    if merged.get("use_case") and not merged.get("useCase"):
+        merged["useCase"] = merged["use_case"]
+    return merged
+
+
+def build_effective_voice_settings(voice: Voice | None, request_voice_settings: dict | None) -> dict:
+    voice_settings = dict(voice.settings if voice else {})
+    if voice and voice.model_ref:
+        voice_settings["model_ref"] = voice.model_ref
+
+    request_settings = request_voice_settings if isinstance(request_voice_settings, dict) else {}
+    request_presenter = request_settings.get("presenter") or {}
+    if not isinstance(request_presenter, dict):
+        request_presenter = {}
+
+    voice_profile = voice_settings.get("profile") or {}
+    request_profile = request_settings.get("profile") or request_presenter.get("profile") or {}
+    effective_profile = _merge_profile(voice_profile, request_profile)
+    if effective_profile:
+        voice_settings["profile"] = effective_profile
+
+    if request_profile:
+        voice_settings["request_profile"] = _string_map(request_profile)
+    if request_presenter:
+        presenter = dict(request_presenter)
+        presenter["profile"] = _merge_profile(effective_profile, presenter.get("profile") or {})
+        voice_settings["request_presenter"] = presenter
+    if isinstance(request_settings.get("voice_settings"), dict):
+        voice_settings["voice_settings"] = request_settings["voice_settings"]
+    return voice_settings
 
 
 def enqueue_generation(
@@ -67,25 +116,15 @@ def run_generation_job(db: Session, job: GenerationJob) -> GenerationJob:
         )
         backend_name = voice.model_backend if voice and voice.model_backend else settings.model_backend
         backend = select_backend(backend_name)
-        voice_settings = dict(voice.settings if voice else {})
-        if voice and voice.model_ref:
-            voice_settings["model_ref"] = voice.model_ref
         request_voice_settings = {}
         if isinstance(job.request_meta, dict):
             request_voice_settings = job.request_meta.get("voice_settings") or {}
-        if isinstance(request_voice_settings, dict):
-            request_profile = request_voice_settings.get("profile") or {}
-            request_presenter = request_voice_settings.get("presenter") or {}
-            if isinstance(request_profile, dict) and request_profile:
-                voice_settings["request_profile"] = request_profile
-            if isinstance(request_presenter, dict) and request_presenter:
-                voice_settings["request_presenter"] = request_presenter
-            if isinstance(request_voice_settings.get("voice_settings"), dict):
-                voice_settings["voice_settings"] = request_voice_settings["voice_settings"]
+        voice_settings = build_effective_voice_settings(voice, request_voice_settings)
 
+        normalized_text = normalize_racing_text(job.text)
         result = backend.synthesize(
             SynthesisRequest(
-                text=job.text,
+                text=normalized_text or job.text,
                 voice_id=job.voice_id,
                 model_id=job.model_id or settings.model_name,
                 settings=voice_settings,
