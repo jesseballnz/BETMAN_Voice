@@ -99,14 +99,14 @@ def bootstrap_defaults(db: Session) -> None:
         },
     }
     voice_model_refs = {
-        "2Ei5B6ir7ZzmLurX6KU4": "piper:en_US-amy-medium",
-        "betman-female-presenter": "piper:en_US-amy-medium",
-        "9K2UBMDog21eSfMdLhEX": "piper:en_US-amy-medium",
-        "betman-comms-girl": "piper:en_US-amy-medium",
-        "pDZ0CqONaFi2LrK1f413": "piper:en_US-ryan-high",
-        "torey-slatter": "piper:en_US-ryan-high",
-        "hp7ETPcMxGdsmsPtJd8I": "piper:en_US-ryan-high",
-        "paul-social-outgoing-kind": "piper:en_US-ryan-high",
+        "2Ei5B6ir7ZzmLurX6KU4": "qwen:9f0d5d97-93a7-46a8-a0af-9260e60ab3e2",
+        "betman-female-presenter": "qwen:9f0d5d97-93a7-46a8-a0af-9260e60ab3e2",
+        "9K2UBMDog21eSfMdLhEX": "qwen:67de3c0d-acbd-4236-a120-910c4e569c75",
+        "betman-comms-girl": "qwen:67de3c0d-acbd-4236-a120-910c4e569c75",
+        "pDZ0CqONaFi2LrK1f413": "qwen:fd581ac5-5f66-49a5-a596-e5986d65bcbc",
+        "torey-slatter": "qwen:fd581ac5-5f66-49a5-a596-e5986d65bcbc",
+        "hp7ETPcMxGdsmsPtJd8I": "qwen:93bd7993-4d63-4937-b3c1-2e76602b062f",
+        "paul-social-outgoing-kind": "qwen:93bd7993-4d63-4937-b3c1-2e76602b062f",
     }
 
     if settings.default_api_key:
@@ -137,10 +137,10 @@ def bootstrap_defaults(db: Session) -> None:
             .first()
         )
         profile = voice_profiles.get(voice_id, {})
-        model_ref = voice_model_refs.get(voice_id, "piper:en_US-amy-medium")
+        model_ref = voice_model_refs[voice_id]
         default_settings = {
             "source": "bootstrap",
-            "training_status": "training_required",
+            "training_status": "ready",
             "profile": profile,
             "model_ref": model_ref,
         }
@@ -150,18 +150,18 @@ def bootstrap_defaults(db: Session) -> None:
                     tenant_id=tenant.id,
                     voice_id=voice_id,
                     name=name,
-                    model_backend="voicebox",
+                    model_backend="qwen-remote",
                     model_ref=model_ref,
                     settings=default_settings,
                 )
             )
         else:
             existing = dict(voice.settings or {})
-            existing.setdefault("training_status", "training_required")
+            existing["training_status"] = "ready"
             existing.setdefault("profile", profile)
-            existing.setdefault("model_ref", model_ref)
-            voice.model_backend = "voicebox"
-            voice.model_ref = voice.model_ref or model_ref
+            existing["model_ref"] = model_ref
+            voice.model_backend = "qwen-remote"
+            voice.model_ref = model_ref
             voice.settings = existing
 
     db.commit()

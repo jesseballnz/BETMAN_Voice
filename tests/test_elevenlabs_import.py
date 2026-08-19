@@ -18,11 +18,11 @@ def test_import_registers_betman_elevenlabs_voices():
                 .first()
             )
             assert voice is not None
-            assert voice.model_backend == "voicebox"
+            assert voice.model_backend == "qwen-remote"
             assert voice.model_ref == spec["model_ref"]
             assert voice.settings["elevenlabs_voice_id"] == spec["voice_id"]
             assert voice.settings["model_ref"] == spec["model_ref"]
-            assert voice.settings["training_status"] == "training_required"
+            assert voice.settings["training_status"] == "ready"
 
             alias = (
                 db.query(Voice)
@@ -30,7 +30,7 @@ def test_import_registers_betman_elevenlabs_voices():
                 .first()
             )
             assert alias is not None
-            assert alias.model_backend == "voicebox"
+            assert alias.model_backend == "qwen-remote"
             assert alias.model_ref == spec["model_ref"]
             assert alias.settings["source"] == "elevenlabs_alias"
             assert alias.settings["elevenlabs_voice_id"] == spec["voice_id"]
