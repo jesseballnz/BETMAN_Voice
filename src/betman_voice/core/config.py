@@ -36,11 +36,6 @@ class Settings(BaseSettings):
     audio_format: str = "wav"
     allow_synthetic_fallback: bool = False
     request_timeout_seconds: int = 120
-    qwen_remote_base_url: str = ""
-    qwen_remote_model_size: str = "0.6B"
-    qwen_remote_seed: int = 42
-    qwen_remote_language: str = "en"
-    qwen_remote_instruct: str = ""
 
 
 @lru_cache

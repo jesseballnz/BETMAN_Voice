@@ -17,28 +17,28 @@ BETMAN_ELEVENLABS_VOICES = [
         "name": "Paul - Social, Out-going and Kind",
         "roles": ["boss"],
         "local_alias": "paul-social-outgoing-kind",
-        "model_ref": "qwen:93bd7993-4d63-4937-b3c1-2e76602b062f",
+        "model_ref": "piper:en_US-ryan-high",
     },
     {
         "voice_id": "9K2UBMDog21eSfMdLhEX",
         "name": "Betman Comms Girl",
         "roles": ["conversation", "comms", "control-room", "general-banter"],
         "local_alias": "betman-comms-girl",
-        "model_ref": "qwen:67de3c0d-acbd-4236-a120-910c4e569c75",
+        "model_ref": "piper:en_US-amy-medium",
     },
     {
         "voice_id": "2Ei5B6ir7ZzmLurX6KU4",
         "name": "BETMAN Female Presenter",
         "roles": ["presenter", "market-mover", "interesting-runner"],
         "local_alias": "betman-female-presenter",
-        "model_ref": "qwen:9f0d5d97-93a7-46a8-a0af-9260e60ab3e2",
+        "model_ref": "piper:en_US-amy-medium",
     },
     {
         "voice_id": "pDZ0CqONaFi2LrK1f413",
         "name": "Torey Slatter",
         "roles": ["junior-analyst", "upcoming-edge", "signal-proof"],
         "local_alias": "torey-slatter",
-        "model_ref": "qwen:fd581ac5-5f66-49a5-a596-e5986d65bcbc",
+        "model_ref": "piper:en_US-ryan-high",
     },
 ]
 
@@ -54,7 +54,7 @@ def import_betman_elevenlabs_voices(
     imported = []
 
     for spec in specs:
-        model_ref = spec["model_ref"]
+        model_ref = spec.get("model_ref", "piper:en_US-amy-medium")
         remote = remote_by_id.get(spec["voice_id"], {})
         voice = (
             db.query(Voice)
@@ -66,7 +66,7 @@ def import_betman_elevenlabs_voices(
             db.add(voice)
         voice.name = remote.get("name") or spec["name"]
         voice.description = "Imported from ElevenLabs for BETMAN_Voice local training."
-        voice.model_backend = "qwen-remote"
+        voice.model_backend = "voicebox"
         voice.model_ref = model_ref
         samples = remote.get("samples") or []
         voice.settings = {
@@ -77,8 +77,8 @@ def import_betman_elevenlabs_voices(
             "model_ref": model_ref,
             "roles": spec.get("roles", []),
             "remote_sample_count": len(samples),
-            "training_status": "ready",
-            "training_note": "ElevenLabs identity mapped to a trained BETMAN Qwen/MLX profile.",
+            "training_status": "training_required",
+            "training_note": "Imported ElevenLabs mapping metadata. Synthesis stays on local BETMAN VoiceBox/Piper until a trained local checkpoint replaces it.",
         }
         imported.append({"voice_id": voice.voice_id, "name": voice.name, "samples": len(samples)})
 
@@ -94,7 +94,7 @@ def import_betman_elevenlabs_voices(
                 db.add(alias_voice)
             alias_voice.name = spec["name"]
             alias_voice.description = f"BETMAN VoiceBox alias mapped from ElevenLabs presenter {spec['voice_id']}."
-            alias_voice.model_backend = "qwen-remote"
+            alias_voice.model_backend = "voicebox"
             alias_voice.model_ref = model_ref
             alias_voice.settings = {
                 **(alias_voice.settings or {}),
@@ -102,7 +102,7 @@ def import_betman_elevenlabs_voices(
                 "elevenlabs_voice_id": spec["voice_id"],
                 "model_ref": model_ref,
                 "roles": spec.get("roles", []),
-                "training_status": "ready",
+                "training_status": "training_required",
             }
 
     db.commit()

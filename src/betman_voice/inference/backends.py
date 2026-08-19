@@ -205,54 +205,6 @@ class VoiceBoxBackend(InferenceBackend):
         raise RuntimeError(f"voicebox_generation_timeout: {job_id} {last_payload}")
 
 
-class QwenRemoteBackend(InferenceBackend):
-    """Use BETMAN's Qwen/MLX inference worker over a private HTTP route."""
-
-    name = "qwen-remote"
-
-    def available(self) -> bool:
-        return bool(get_settings().qwen_remote_base_url.strip())
-
-    def synthesize(self, request: SynthesisRequest) -> SynthesisResult:
-        settings = get_settings()
-        base_url = settings.qwen_remote_base_url.strip().rstrip("/")
-        if not base_url:
-            raise RuntimeError("qwen_remote_base_url_missing")
-
-        request_settings = request.settings if isinstance(request.settings, dict) else {}
-        model_ref = str(request_settings.get("model_ref") or request.model_id or "").strip()
-        if not model_ref.startswith("qwen:"):
-            raise RuntimeError(f"qwen_remote_model_ref_invalid: {model_ref or 'missing'}")
-        profile_id = model_ref.split(":", 1)[1].strip()
-        if not profile_id:
-            raise RuntimeError("qwen_remote_profile_id_missing")
-
-        payload = {
-            "profile_id": profile_id,
-            "text": request.text,
-            "language": settings.qwen_remote_language,
-            "model_size": settings.qwen_remote_model_size,
-            "seed": settings.qwen_remote_seed,
-        }
-        if settings.qwen_remote_instruct.strip():
-            payload["instruct"] = settings.qwen_remote_instruct.strip()
-
-        with httpx.Client(timeout=settings.request_timeout_seconds) as client:
-            response = client.post(f"{base_url}/generate", json=payload)
-            response.raise_for_status()
-            generation_id = str(response.json().get("id") or "").strip()
-            if not generation_id:
-                raise RuntimeError("qwen_remote_generation_id_missing")
-            audio_response = client.get(f"{base_url}/audio/{generation_id}")
-            audio_response.raise_for_status()
-            audio = audio_response.content
-
-        if not audio:
-            raise RuntimeError("qwen_remote_empty_audio")
-        mime_type = (audio_response.headers.get("content-type") or "audio/wav").split(";")[0]
-        return SynthesisResult(audio, mime_type, self.name, _estimate_duration_ms(audio))
-
-
 def select_backend(preference: str = "auto") -> InferenceBackend:
     settings = get_settings()
     runtime = detect_runtime()
@@ -264,11 +216,6 @@ def select_backend(preference: str = "auto") -> InferenceBackend:
         raise RuntimeError("voicebox_piper_unavailable")
     if pref in {"external-voicebox", "voicebox-http"}:
         return VoiceBoxBackend()
-    if pref in {"qwen-remote", "qwen-http", "qwen-mlx-remote"}:
-        qwen_remote = QwenRemoteBackend()
-        if qwen_remote.available():
-            return qwen_remote
-        raise RuntimeError("qwen_remote_unavailable")
     if pref in {"elevenlabs", "eleven-labs"}:
         raise RuntimeError("elevenlabs_backend_not_available_in_betman_voice")
     qwen = QwenTtsBackend(runtime)

@@ -8,20 +8,20 @@ vim .env
 scripts/deploy.sh
 ```
 
-BETMAN-TEST runs from `root@170.64.201.92:/opt/betman-test/BETMAN_Voice`.
+Deployment target defaults to `root@170.64.201.92:/opt/betman/BETMAN_Voice`.
 
 ## Health
 
 ```bash
 curl https://170.64.201.92:8088/health
 curl https://170.64.201.92:8088/metrics
-ssh root@170.64.201.92 'systemctl status betman-test-voice betman-test-voice-worker'
+ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose ps'
 ```
 
 ## Logs
 
 ```bash
-ssh root@170.64.201.92 'journalctl -fu betman-test-voice -u betman-test-voice-worker'
+ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose logs -f --tail=200 api worker'
 ```
 
 Logs are structured JSON from the app and worker.
@@ -78,33 +78,8 @@ Set these through the BETMAN_Content config UI or environment:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://127.0.0.1:18088
-DJ_VOICEBOX_API_KEY=<BETMAN_VOICE_DEFAULT_API_KEY>
+DJ_VOICEBOX_BASE_URL=https://170.64.201.92:8088
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
-```
-
-## Qwen/MLX M4 Worker
-
-BETMAN-TEST uses `model_backend=qwen-remote`. Content still talks only to the
-BETMAN Voice API; the Voice worker calls Qwen/MLX through a reverse SSH tunnel:
-
-```text
-BETMAN Content -> BETMAN Voice :18088 -> TEST loopback :18011 -> M4 Qwen/MLX
-```
-
-Required Voice environment:
-
-```env
-BETMAN_VOICE_QWEN_REMOTE_BASE_URL=http://127.0.0.1:18011
-BETMAN_VOICE_QWEN_REMOTE_MODEL_SIZE=0.6B
-BETMAN_VOICE_QWEN_REMOTE_SEED=42
-BETMAN_VOICE_QWEN_REMOTE_LANGUAGE=en
-```
-
-The tunnel must bind only to `127.0.0.1` on BETMAN-TEST. Check it with:
-
-```bash
-ssh root@170.64.201.92 'curl -fsS http://127.0.0.1:18011/health'
 ```
 
 ## Import ElevenLabs Voices
@@ -113,8 +88,8 @@ ssh root@170.64.201.92 'curl -fsS http://127.0.0.1:18011/health'
 ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose exec -T api python scripts/import_elevenlabs.py --api-key "$ELEVENLABS_API_KEY"'
 ```
 
-The four BETMAN identities and aliases are mapped to their trained Qwen/MLX
-profiles and marked `ready`. See `docs/TRAINING.md` for adding future voices.
+Imported voices are intentionally marked `training_required` until the local
+Voicebox/Qwen checkpoints are trained. See `docs/TRAINING.md`.
 
 The worker can poll ElevenLabs automatically when `ELEVENLABS_API_KEY` is set.
 Tune the interval with `BETMAN_VOICE_ELEVENLABS_POLL_SECONDS`; set it to `0` to

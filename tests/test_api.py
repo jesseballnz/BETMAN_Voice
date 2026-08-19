@@ -40,10 +40,7 @@ def test_api_key_tts_generation():
         assert payload["ok"] is True
         assert payload["audio_url"]
     else:
-        assert any(
-            marker in payload.get("error", "")
-            for marker in ("piper", "qwen_remote_unavailable", "tts_backend_unavailable")
-        )
+        assert "piper" in payload.get("error", "") or "tts_backend_unavailable" in payload.get("error", "")
 
 
 def test_auth_login_and_voices():
