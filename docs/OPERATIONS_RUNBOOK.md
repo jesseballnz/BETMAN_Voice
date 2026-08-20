@@ -8,20 +8,20 @@ vim .env
 scripts/deploy.sh
 ```
 
-Production target: `root@168.144.163.174:/opt/betman/BETMAN_Voice`.
+Production target: `root@168.144.173.40:/opt/betman/BETMAN_Voice`.
 
 ## Health
 
 ```bash
-curl http://168.144.163.174:8088/health
-curl http://168.144.163.174:8088/metrics
-ssh root@168.144.163.174 'systemctl status betman-voice betman-voice-worker'
+curl http://168.144.173.40:8088/health
+curl http://168.144.173.40:8088/metrics
+ssh root@168.144.173.40 'systemctl status betman-voice betman-voice-worker'
 ```
 
 ## Logs
 
 ```bash
-ssh root@168.144.163.174 'journalctl -f -u betman-voice -u betman-voice-worker'
+ssh root@168.144.173.40 'journalctl -f -u betman-voice -u betman-voice-worker'
 ```
 
 Logs are structured JSON from the app and worker.
@@ -51,7 +51,7 @@ present under the profiles directory.
 ## Backup
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && scripts/backup.sh'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && scripts/backup.sh'
 ```
 
 This captures Postgres and local audio. If DigitalOcean Spaces is enabled, the
@@ -61,7 +61,7 @@ durability.
 ## Restore
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && scripts/restore.sh backups/betman_voice_YYYY.sql'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && scripts/restore.sh backups/betman_voice_YYYY.sql'
 ```
 
 Restart the API and worker after restore:
@@ -73,7 +73,7 @@ systemctl restart betman-voice betman-voice-worker
 ## Upgrade
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && scripts/upgrade.sh'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && scripts/upgrade.sh'
 ```
 
 The upgrade script backs up first, pulls the latest code, rebuilds containers,
@@ -82,13 +82,13 @@ runs migrations, and checks `/health`.
 ## Load Test
 
 ```bash
-locust -f scripts/load_test.py --host http://168.144.163.174:8088
+locust -f scripts/load_test.py --host http://168.144.173.40:8088
 ```
 
 ## Failover Test
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && scripts/failover_test.sh'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && scripts/failover_test.sh'
 ```
 
 Expected behavior: API health remains available when worker is restarted, queued
@@ -100,15 +100,15 @@ Set these through the BETMAN_Content config UI or environment:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://168.144.163.174:8088
-DJ_VOICEBOX_TIMEOUT_MS=600000
+DJ_VOICEBOX_BASE_URL=http://168.144.173.40:8088
+DJ_VOICEBOX_TIMEOUT_MS=120000
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
 ```
 
 ## Import ElevenLabs Voices
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && .venv/bin/python scripts/import_elevenlabs.py --api-key "$ELEVENLABS_API_KEY"'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && .venv/bin/python scripts/import_elevenlabs.py --api-key "$ELEVENLABS_API_KEY"'
 ```
 
 Imported voices are intentionally marked `training_required` until the local
@@ -132,7 +132,7 @@ curl -X POST "$BETMAN_VOICE_URL/admin/voices/betman-female-presenter/training" \
 Or run from the host:
 
 ```bash
-ssh root@168.144.163.174 'cd /opt/betman/BETMAN_Voice && .venv/bin/python scripts/train_voice.py betman-female-presenter --run-now'
+ssh root@168.144.173.40 'cd /opt/betman/BETMAN_Voice && .venv/bin/python scripts/train_voice.py betman-female-presenter --run-now'
 ```
 
 If samples are missing, the job moves to `waiting_for_samples`. If samples exist
@@ -141,7 +141,7 @@ but no trainer command is configured, it moves to `waiting_for_trainer`.
 For ElevenLabs-compatible clients:
 
 ```env
-ELEVENLABS_BASE_URL=http://168.144.163.174:8088
+ELEVENLABS_BASE_URL=http://168.144.173.40:8088
 ELEVENLABS_API_KEY=<BETMAN_VOICE_DEFAULT_API_KEY>
 ```
 
@@ -161,15 +161,15 @@ Profiles are stored in `/var/lib/betman-voice/qwen-profiles`. Never remove an
 ElevenLabs-ID row or alias until Content configuration has been audited for
 references and an end-to-end generation has passed for the replacement.
 
-## 2026-08-20 migration rollback
+## 2026-08-20 CPU Qwen trial outcome
 
-The former production host `168.144.173.40` remains the rollback target during
-the observation window. The pre-cutover Content config is stored on the Content
-host at:
+Production was restored to `168.144.173.40` after both the 1.7B and 0.6B
+single-worker CPU trials on `168.144.163.174` failed live-load acceptance. The
+public synchronous Content request path timed out, worker restarts left jobs in
+`running`, and the queue accumulated under burst traffic. The staging worker is
+stopped and staging must not be routed back into production without a new
+architecture and explicit production approval.
 
-`/opt/betman/deploy-backups/voice-cutover-20260820/channels-config.json.pre-168.144.163.174`
+The restored production Content configuration is backed up at:
 
-Restore that file atomically to `data/channels-config.json` to route new jobs
-back to the former host. Do not decommission the former host until production
-traffic has completed the agreed observation window without queue growth,
-timeouts, worker restarts, or presenter mismatches.
+`/opt/betman/deploy-backups/voice-rollback-20260820/channels-config.json.pre-rollback-from-qwen`

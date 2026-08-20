@@ -38,8 +38,8 @@ Provision through BETMAN_Content's config area:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=http://168.144.163.174:8088
-DJ_VOICEBOX_TIMEOUT_MS=600000
+DJ_VOICEBOX_BASE_URL=http://168.144.173.40:8088
+DJ_VOICEBOX_TIMEOUT_MS=120000
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
 ```
 
@@ -64,9 +64,11 @@ curl -X POST "$BETMAN_VOICE_URL/admin/voices/betman-female-presenter/training" \
 
 ## Deployment Target
 
-Production host: `168.144.163.174` (8 vCPU, 16 GiB RAM)
+Production host: `168.144.173.40`.
 
-Runtime: Qwen3-TTS 1.7B with one resident CPU worker and durable Postgres queue.
+The CPU Qwen host `168.144.163.174` is staging-only. Its 1.7B and 0.6B
+production trials were rolled back on 2026-08-20 after synchronous latency and
+queue recovery failed the live-load acceptance criteria.
 
 See [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
 
