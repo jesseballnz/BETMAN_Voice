@@ -7,6 +7,7 @@ os.environ["BETMAN_VOICE_ADMIN_EMAIL"] = "betman"
 os.environ["BETMAN_VOICE_ADMIN_PASSWORD"] = "betman1234"
 os.environ["BETMAN_VOICE_DEFAULT_API_KEY"] = "test-api-key"
 os.environ["BETMAN_VOICE_LOCAL_STORAGE_DIR"] = tempfile.mkdtemp()
+os.environ["BETMAN_VOICE_SYNC_THROUGH_WORKER"] = "false"
 
 from betman_voice.core.config import get_settings
 
