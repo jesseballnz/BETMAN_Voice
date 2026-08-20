@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import io
+import json
 import math
 import os
 import subprocess
+import threading
 import time
 import wave
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import ClassVar
 
 import httpx
 
@@ -73,6 +76,87 @@ class QwenTtsBackend(InferenceBackend):
             if not get_settings().allow_synthetic_fallback:
                 raise RuntimeError(f"qwen3_tts_failed: {exc}") from exc
         return SyntheticCpuBackend().synthesize(request)
+
+
+class QwenLocalBackend(InferenceBackend):
+    """Resident CPU Qwen voice cloning from BETMAN-owned profile samples."""
+
+    name = "qwen-local"
+    _model: ClassVar[object | None] = None
+    _loaded_model_name: ClassVar[str] = ""
+    _prompts: ClassVar[dict[str, object]] = {}
+    _lock: ClassVar[threading.Lock] = threading.Lock()
+
+    def available(self) -> bool:
+        try:
+            import qwen_tts  # noqa: F401
+            import soundfile  # noqa: F401
+            import torch  # noqa: F401
+
+            return True
+        except Exception:
+            return False
+
+    def preload(self) -> None:
+        with self._lock:
+            self._get_model()
+
+    def synthesize(self, request: SynthesisRequest) -> SynthesisResult:
+        import soundfile as sf
+        import torch
+
+        settings = get_settings()
+        request_settings = request.settings if isinstance(request.settings, dict) else {}
+        model_ref = str(request_settings.get("model_ref") or request.model_id or "").strip()
+        profile_id = _qwen_profile_id(model_ref)
+
+        with self._lock:
+            torch.set_num_threads(max(1, min(settings.qwen_num_threads, os.cpu_count() or 1)))
+            torch.manual_seed(settings.qwen_seed)
+            model = self._get_model()
+            prompt = self._prompts.get(profile_id)
+            if prompt is None:
+                reference_audio, reference_text = _qwen_profile_reference(
+                    settings.qwen_profiles_dir,
+                    profile_id,
+                )
+                prompt = model.create_voice_clone_prompt(
+                    ref_audio=str(reference_audio),
+                    ref_text=reference_text,
+                    x_vector_only_mode=False,
+                )
+                self._prompts[profile_id] = prompt
+            wavs, sample_rate = model.generate_voice_clone(
+                text=request.text,
+                language=settings.qwen_language,
+                voice_clone_prompt=prompt,
+                max_new_tokens=settings.qwen_max_new_tokens,
+            )
+
+        output = io.BytesIO()
+        sf.write(output, wavs[0], sample_rate, format="WAV", subtype="PCM_16")
+        audio = output.getvalue()
+        if not audio:
+            raise RuntimeError("qwen_local_empty_audio")
+        return SynthesisResult(audio, "audio/wav", self.name, _estimate_duration_ms(audio))
+
+    def _get_model(self):
+        import torch
+        from qwen_tts import Qwen3TTSModel
+
+        model_name = get_settings().model_name.strip()
+        if not model_name:
+            raise RuntimeError("qwen_local_model_name_missing")
+        if self.__class__._model is None or self.__class__._loaded_model_name != model_name:
+            self.__class__._model = Qwen3TTSModel.from_pretrained(
+                model_name,
+                device_map="cpu",
+                dtype=torch.float32,
+                attn_implementation="eager",
+            )
+            self.__class__._loaded_model_name = model_name
+            self.__class__._prompts = {}
+        return self.__class__._model
 
 
 class SyntheticCpuBackend(InferenceBackend):
@@ -216,6 +300,11 @@ def select_backend(preference: str = "auto") -> InferenceBackend:
         raise RuntimeError("voicebox_piper_unavailable")
     if pref in {"external-voicebox", "voicebox-http"}:
         return VoiceBoxBackend()
+    if pref in {"qwen-local", "qwen-cpu", "qwen3-local"}:
+        qwen_local = QwenLocalBackend()
+        if qwen_local.available():
+            return qwen_local
+        raise RuntimeError("qwen_local_unavailable")
     if pref in {"elevenlabs", "eleven-labs"}:
         raise RuntimeError("elevenlabs_backend_not_available_in_betman_voice")
     qwen = QwenTtsBackend(runtime)
@@ -239,3 +328,34 @@ def _voicebox_base_url() -> str:
         os.getenv("VOICEBOX_BASE_URL", "").strip()
         or os.getenv("BETMAN_VOICE_VOICEBOX_BASE_URL", "").strip()
     ).rstrip("/")
+
+
+def _qwen_profile_id(model_ref: str) -> str:
+    if not model_ref.startswith("qwen:"):
+        raise RuntimeError(f"qwen_local_model_ref_invalid: {model_ref or 'missing'}")
+    profile_id = model_ref.split(":", 1)[1].strip()
+    valid_characters = "0123456789abcdef-"
+    if not profile_id or any(character not in valid_characters for character in profile_id.lower()):
+        raise RuntimeError(f"qwen_local_profile_id_invalid: {profile_id or 'missing'}")
+    return profile_id
+
+
+def _qwen_profile_reference(profiles_dir: Path, profile_id: str) -> tuple[Path, str]:
+    profile_dir = (Path(profiles_dir) / profile_id).resolve()
+    root = Path(profiles_dir).resolve()
+    if root not in profile_dir.parents:
+        raise RuntimeError("qwen_local_profile_path_invalid")
+    samples_path = profile_dir / "samples.json"
+    if not samples_path.exists():
+        raise RuntimeError(f"qwen_local_samples_missing: {profile_id}")
+    samples = json.loads(samples_path.read_text())
+    if not isinstance(samples, dict) or not samples:
+        raise RuntimeError(f"qwen_local_samples_empty: {profile_id}")
+    filename, transcript = next(iter(samples.items()))
+    reference_audio = (profile_dir / "samples" / str(filename)).resolve()
+    if profile_dir not in reference_audio.parents or not reference_audio.is_file():
+        raise RuntimeError(f"qwen_local_reference_missing: {profile_id}")
+    reference_text = str(transcript or "").strip()
+    if not reference_text:
+        raise RuntimeError(f"qwen_local_transcript_missing: {profile_id}")
+    return reference_audio, reference_text

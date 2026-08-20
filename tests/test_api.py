@@ -12,8 +12,9 @@ from betman_voice.core.config import get_settings
 
 get_settings.cache_clear()
 
-from betman_voice.api.app import create_app
 from fastapi.testclient import TestClient
+
+from betman_voice.api.app import create_app
 
 app = create_app()
 
@@ -40,7 +41,10 @@ def test_api_key_tts_generation():
         assert payload["ok"] is True
         assert payload["audio_url"]
     else:
-        assert "piper" in payload.get("error", "") or "tts_backend_unavailable" in payload.get("error", "")
+        assert any(
+            marker in payload.get("error", "")
+            for marker in ("qwen_local_unavailable", "piper", "tts_backend_unavailable")
+        )
 
 
 def test_auth_login_and_voices():

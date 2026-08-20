@@ -9,6 +9,7 @@ from betman_voice.core.config import get_settings
 from betman_voice.core.logging import configure_logging, get_logger
 from betman_voice.db.models import GenerationJob, Tenant, TrainingJob
 from betman_voice.db.session import SessionLocal
+from betman_voice.inference.backends import QwenLocalBackend, select_backend
 from betman_voice.services.elevenlabs_import import import_betman_elevenlabs_voices
 from betman_voice.services.jobs import run_generation_job
 from betman_voice.services.training import run_training_job
@@ -25,6 +26,12 @@ def run_worker() -> None:
         poll_seconds=settings.job_poll_seconds,
         elevenlabs_poll_seconds=settings.elevenlabs_poll_seconds,
     )
+    if settings.qwen_preload:
+        backend = select_backend(settings.model_backend)
+        if not isinstance(backend, QwenLocalBackend):
+            raise RuntimeError(f"qwen_preload_backend_invalid: {backend.name}")
+        backend.preload()
+        log.info("qwen_model_preloaded", model=settings.model_name)
     while True:
         with SessionLocal() as db:
             if maybe_poll_elevenlabs(db, settings, last_elevenlabs_poll):

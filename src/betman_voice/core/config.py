@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     audio_format: str = "wav"
     allow_synthetic_fallback: bool = False
     request_timeout_seconds: int = 120
+    sync_through_worker: bool = False
+    qwen_profiles_dir: Path = Path("./models/qwen-profiles")
+    qwen_seed: int = 42
+    qwen_language: str = "English"
+    qwen_max_new_tokens: int = 512
+    qwen_num_threads: int = 8
+    qwen_preload: bool = False
 
 
 @lru_cache

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import jwt
@@ -24,8 +25,8 @@ from betman_voice.core.runtime import detect_runtime
 from betman_voice.db.bootstrap import bootstrap_defaults
 from betman_voice.db.models import GenerationJob, TrainingJob, User, Voice
 from betman_voice.db.session import Base, SessionLocal, engine, get_db
-from betman_voice.services.jobs import enqueue_generation, run_generation_job
 from betman_voice.services.elevenlabs_import import import_betman_elevenlabs_voices
+from betman_voice.services.jobs import enqueue_generation, run_generation_job
 from betman_voice.services.training import enqueue_training_job
 
 REQUESTS = Counter("betman_voice_requests_total", "HTTP requests", ["path", "method", "status"])
@@ -198,11 +199,17 @@ def create_app() -> FastAPI:
             body.text,
             model_id=body.model_id or "",
             request_meta={"voice_settings": body.voice_settings or {}, "compat": "betman"},
-            initial_status="queued" if body.async_job else "running",
+            initial_status=(
+                "queued" if body.async_job or settings.sync_through_worker else "running"
+            ),
         )
         if body.async_job:
             return TtsResponse(ok=True, id=str(job.id), status=job.status)
-        job = run_generation_job(db, job)
+        job = (
+            _wait_for_worker(db, job)
+            if settings.sync_through_worker
+            else run_generation_job(db, job)
+        )
         GENERATIONS.labels(job.status, job.backend or "none").inc()
         return _job_response(job)
 
@@ -237,10 +244,17 @@ def create_app() -> FastAPI:
             voice_id,
             text,
             model_id=str(body.get("model_id") or ""),
-            request_meta={"voice_settings": body.get("voice_settings") or {}, "compat": "elevenlabs"},
-            initial_status="running",
+            request_meta={
+                "voice_settings": body.get("voice_settings") or {},
+                "compat": "elevenlabs",
+            },
+            initial_status="queued" if settings.sync_through_worker else "running",
         )
-        job = run_generation_job(db, job)
+        job = (
+            _wait_for_worker(db, job)
+            if settings.sync_through_worker
+            else run_generation_job(db, job)
+        )
         GENERATIONS.labels(job.status, job.backend or "none").inc()
         if job.status != "completed":
             raise HTTPException(502, job.error or "generation_failed")
@@ -320,3 +334,15 @@ def _training_response(job: TrainingJob) -> TrainingResponse:
         model_ref=job.model_ref or "",
         error=job.error or None,
     )
+
+
+def _wait_for_worker(db: Session, job: GenerationJob) -> GenerationJob:
+    settings = get_settings()
+    deadline = time.monotonic() + settings.request_timeout_seconds
+    while time.monotonic() < deadline:
+        db.expire_all()
+        current = db.query(GenerationJob).filter(GenerationJob.id == job.id).first()
+        if current and current.status in {"completed", "failed"}:
+            return current
+        time.sleep(max(0.1, min(1.0, settings.job_poll_seconds)))
+    raise HTTPException(504, f"generation_timeout: {job.id}")

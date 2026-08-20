@@ -26,6 +26,28 @@ ssh root@170.64.201.92 'cd /opt/betman/BETMAN_Voice && docker compose logs -f --
 
 Logs are structured JSON from the app and worker.
 
+## Resident Qwen CPU worker
+
+Production Qwen runs in the dedicated worker process. The API enqueues
+ElevenLabs-compatible synchronous requests and waits for the worker, so only
+one 1.7B model is resident and generation remains concurrency one.
+
+```env
+BETMAN_VOICE_MODEL_BACKEND=qwen-local
+BETMAN_VOICE_MODEL_NAME=Qwen/Qwen3-TTS-12Hz-1.7B-Base
+BETMAN_VOICE_SYNC_THROUGH_WORKER=true
+BETMAN_VOICE_REQUEST_TIMEOUT_SECONDS=600
+BETMAN_VOICE_QWEN_PROFILES_DIR=/var/lib/betman-voice/qwen-profiles
+BETMAN_VOICE_QWEN_SEED=42
+BETMAN_VOICE_QWEN_NUM_THREADS=8
+BETMAN_VOICE_QWEN_PRELOAD=true
+```
+
+Do not run a second worker or colocate another memory-heavy service on a
+16 GiB host. Each active ElevenLabs presenter ID and local alias must map to a
+distinct `qwen:<profile-id>` whose exported `samples.json` and WAV files are
+present under the profiles directory.
+
 ## Backup
 
 ```bash
