@@ -38,7 +38,8 @@ Provision through BETMAN_Content's config area:
 
 ```env
 DJ_TTS_PROVIDER=voicebox
-DJ_VOICEBOX_BASE_URL=https://170.64.201.92:8088
+DJ_VOICEBOX_BASE_URL=http://168.144.163.174:8088
+DJ_VOICEBOX_TIMEOUT_MS=600000
 DJ_VOICEBOX_VOICE_ID=betman-female-presenter
 ```
 
@@ -63,9 +64,9 @@ curl -X POST "$BETMAN_VOICE_URL/admin/voices/betman-female-presenter/training" \
 
 ## Deployment Target
 
-DigitalOcean project: `BETMAN Test`
+Production host: `168.144.163.174` (8 vCPU, 16 GiB RAM)
 
-Host: `BETMAN-TEST` at `170.64.201.92`
+Runtime: Qwen3-TTS 1.7B with one resident CPU worker and durable Postgres queue.
 
 See [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
 
